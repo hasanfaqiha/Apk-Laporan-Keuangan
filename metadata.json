@@ -1,0 +1,6 @@
+{
+  "name": "Keuanganku",
+  "description": "Aplikasi Laporan Keuangan Pribadi untuk mencatat pengeluaran harian, pemasukan, cash di tangan, saldo bank, analisis statistik, dan pengingat tagihan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
