@@ -15,7 +15,7 @@ interface FinanceDao {
     fun getAllTransactions(): Flow<List<Transaction>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTransaction(transaction: Transaction)
+    suspend fun insertTransaction(transaction: Transaction): Long
 
     @Update
     suspend fun updateTransaction(transaction: Transaction)
@@ -28,7 +28,7 @@ interface FinanceDao {
     fun getAllBills(): Flow<List<Bill>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertBill(bill: Bill)
+    suspend fun insertBill(bill: Bill): Long
 
     @Update
     suspend fun updateBill(bill: Bill)
@@ -41,7 +41,7 @@ interface FinanceDao {
     fun getAllCategories(): Flow<List<Category>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCategory(category: Category)
+    suspend fun insertCategory(category: Category): Long
 
     @Update
     suspend fun updateCategory(category: Category)

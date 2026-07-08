@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -146,6 +147,7 @@ fun SettingsScreen(
                     // Credit Card Logic & Cloud Hosting FAQ Info Section
                     val selectedTheme by viewModel.selectedTheme.collectAsState()
                     InfoAndFaqSection(
+                        viewModel = viewModel,
                         creditCardDebt = summary.creditCardDebt,
                         onCheckCCNow = {
                             viewModel.checkAndGenerateCreditCardBills()
@@ -368,11 +370,30 @@ fun CategoryListSection(
 
 @Composable
 fun InfoAndFaqSection(
+    viewModel: FinanceViewModel,
     creditCardDebt: Double,
     onCheckCCNow: () -> Unit,
     selectedTheme: String,
     onThemeSelected: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val syncManager = viewModel.syncManager
+
+    var isLoggedIn by remember { mutableStateOf(syncManager.isLoggedIn) }
+    var userEmail by remember { mutableStateOf(syncManager.currentUserEmail ?: "") }
+
+    var emailText by remember { mutableStateOf("") }
+    var passwordText by remember { mutableStateOf("") }
+    var isRegisterMode by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            isLoggedIn = auth.currentUser != null
+            userEmail = auth.currentUser?.email ?: ""
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -454,6 +475,245 @@ fun InfoAndFaqSection(
                 }
             }
         }
+
+        // FIREBASE CLOUD SYNC CARD
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.25f)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudQueue,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Sinkronisasi Cloud (Firebase Live)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Mengamankan data keuangan Anda secara online agar dapat diakses dari perangkat manapun.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f))
+
+                if (isLoggedIn) {
+                    // Logged In UI
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDone,
+                                contentDescription = null,
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Terhubung dengan Akun Cloud",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = "Email: $userEmail",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Text(
+                            text = "Status: Sinkronisasi otomatis aktif saat Anda menambah, mengubah, atau menghapus transaksi / tagihan lokal.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    isProcessing = true
+                                    syncManager.performFullSync(
+                                        onSuccess = {
+                                            isProcessing = false
+                                            Toast.makeText(context, "Sinkronisasi data berhasil diselesaikan!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onFailure = { e ->
+                                            isProcessing = false
+                                            Toast.makeText(context, "Gagal sinkronisasi: ${e.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                },
+                                enabled = !isProcessing,
+                                modifier = Modifier.weight(1.3f).testTag("sync_now_button")
+                            ) {
+                                if (isProcessing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sinkron Sekarang", fontSize = 12.sp)
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                                    Toast.makeText(context, "Anda telah keluar dari akun cloud.", Toast.LENGTH_SHORT).show()
+                                },
+                                enabled = !isProcessing,
+                                modifier = Modifier.weight(1f).testTag("logout_button")
+                            ) {
+                                Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Keluar", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                } else {
+                    // Logged Out (Login/Register Form) UI
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            TextButton(
+                                onClick = { isRegisterMode = false },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "MASUK (LOGIN)",
+                                    fontWeight = if (!isRegisterMode) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (!isRegisterMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                )
+                            }
+                            TextButton(
+                                onClick = { isRegisterMode = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "DAFTAR BARU",
+                                    fontWeight = if (isRegisterMode) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isRegisterMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = emailText,
+                            onValueChange = { emailText = it },
+                            label = { Text("Email Firebase / Gmail") },
+                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("firebase_email_input")
+                        )
+
+                        OutlinedTextField(
+                            value = passwordText,
+                            onValueChange = { passwordText = it },
+                            label = { Text("Password (Min 6 Karakter)") },
+                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth().testTag("firebase_password_input")
+                        )
+
+                        Button(
+                            onClick = {
+                                if (emailText.trim().isEmpty() || passwordText.trim().isEmpty()) {
+                                    Toast.makeText(context, "Email dan Password tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                if (passwordText.length < 6) {
+                                    Toast.makeText(context, "Password minimal harus 6 karakter!", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                isProcessing = true
+                                val authInstance = com.google.firebase.auth.FirebaseAuth.getInstance()
+
+                                if (isRegisterMode) {
+                                    // Sign Up
+                                    authInstance.createUserWithEmailAndPassword(emailText.trim(), passwordText.trim())
+                                        .addOnSuccessListener {
+                                            isProcessing = false
+                                            Toast.makeText(context, "Akun berhasil didaftarkan dan masuk!", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .addOnFailureListener { e ->
+                                            isProcessing = false
+                                            Toast.makeText(context, "Gagal mendaftar: ${e.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                } else {
+                                    // Sign In
+                                    authInstance.signInWithEmailAndPassword(emailText.trim(), passwordText.trim())
+                                        .addOnSuccessListener {
+                                            isProcessing = false
+                                            Toast.makeText(context, "Selamat datang kembali!", Toast.LENGTH_SHORT).show()
+                                            
+                                            // Automatically perform full sync after successful login
+                                            syncManager.performFullSync(
+                                                onSuccess = {
+                                                    Toast.makeText(context, "Sinkronisasi awal berhasil diselesaikan!", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onFailure = { syncError ->
+                                                    Log.e("FirebaseSync", "Initial sync failed", syncError)
+                                                }
+                                            )
+                                        }
+                                        .addOnFailureListener { e ->
+                                            isProcessing = false
+                                            Toast.makeText(context, "Gagal masuk: ${e.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                }
+                            },
+                            enabled = !isProcessing,
+                            modifier = Modifier.fillMaxWidth().testTag("auth_submit_button")
+                        ) {
+                            if (isProcessing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(if (isRegisterMode) "Daftar Akun Baru" else "Masuk ke Akun Cloud", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // CREDIT CARD BILLING LOGIC CARD
         Card(
             colors = CardDefaults.cardColors(

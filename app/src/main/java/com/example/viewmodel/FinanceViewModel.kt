@@ -13,6 +13,7 @@ import com.example.data.Category
 import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
 import com.example.data.Transaction
+import com.example.data.FirebaseSyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() {
+
+    val syncManager = FirebaseSyncManager(repository)
 
     // List of transactions
     val transactions: StateFlow<List<Transaction>> = repository.allTransactions
@@ -171,45 +174,56 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     // Transaction Actions
     fun addTransaction(title: String, amount: Double, type: String, accountType: String, category: String, dateMillis: Long, note: String) {
         viewModelScope.launch {
-            repository.insertTransaction(
-                Transaction(
-                    title = title,
-                    amount = amount,
-                    type = type,
-                    accountType = accountType,
-                    category = category,
-                    dateMillis = dateMillis,
-                    note = note
-                )
+            val transaction = Transaction(
+                title = title,
+                amount = amount,
+                type = type,
+                accountType = accountType,
+                category = category,
+                dateMillis = dateMillis,
+                note = note
             )
+            val newId = repository.insertTransaction(transaction)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncTransactionToCloud(transaction.copy(id = newId.toInt()))
+            }
         }
     }
 
     fun deleteTransaction(id: Int) {
         viewModelScope.launch {
             repository.deleteTransactionById(id)
+            if (syncManager.isLoggedIn) {
+                syncManager.deleteTransactionFromCloud(id)
+            }
         }
     }
 
     // Bill Actions
     fun addBill(title: String, amount: Double, dueDateMillis: Long, category: String, note: String, context: Context? = null) {
         viewModelScope.launch {
-            repository.insertBill(
-                Bill(
-                    title = title,
-                    amount = amount,
-                    dueDateMillis = dueDateMillis,
-                    category = category,
-                    note = note
-                )
+            val bill = Bill(
+                title = title,
+                amount = amount,
+                dueDateMillis = dueDateMillis,
+                category = category,
+                note = note
             )
+            val newId = repository.insertBill(bill)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncBillToCloud(bill.copy(id = newId.toInt()))
+            }
             context?.let { triggerBillReminders(it) }
         }
     }
 
     fun toggleBillPaid(bill: Bill, context: Context? = null) {
         viewModelScope.launch {
-            repository.updateBill(bill.copy(isPaid = !bill.isPaid))
+            val updated = bill.copy(isPaid = !bill.isPaid)
+            repository.updateBill(updated)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncBillToCloud(updated)
+            }
             context?.let { triggerBillReminders(it) }
         }
     }
@@ -217,6 +231,9 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     fun deleteBill(id: Int) {
         viewModelScope.launch {
             repository.deleteBillById(id)
+            if (syncManager.isLoggedIn) {
+                syncManager.deleteBillFromCloud(id)
+            }
         }
     }
 
@@ -349,19 +366,29 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     // Category actions
     fun addCategory(name: String, type: String) {
         viewModelScope.launch {
-            repository.insertCategory(Category(name = name, type = type))
+            val category = Category(name = name, type = type)
+            val newId = repository.insertCategory(category)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncCategoryToCloud(category.copy(id = newId.toInt()))
+            }
         }
     }
 
     fun updateCategory(category: Category) {
         viewModelScope.launch {
             repository.updateCategory(category)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncCategoryToCloud(category)
+            }
         }
     }
 
     fun deleteCategory(category: Category) {
         viewModelScope.launch {
             repository.deleteCategory(category)
+            if (syncManager.isLoggedIn) {
+                syncManager.deleteCategoryFromCloud(category.id)
+            }
         }
     }
 }

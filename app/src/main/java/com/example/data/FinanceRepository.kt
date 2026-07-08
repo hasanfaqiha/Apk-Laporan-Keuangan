@@ -7,8 +7,8 @@ class FinanceRepository(private val financeDao: FinanceDao) {
     val allBills: Flow<List<Bill>> = financeDao.getAllBills()
     val allCategories: Flow<List<Category>> = financeDao.getAllCategories()
 
-    suspend fun insertTransaction(transaction: Transaction) {
-        financeDao.insertTransaction(transaction)
+    suspend fun insertTransaction(transaction: Transaction): Long {
+        return financeDao.insertTransaction(transaction)
     }
 
     suspend fun updateTransaction(transaction: Transaction) {
@@ -19,8 +19,8 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.deleteTransactionById(id)
     }
 
-    suspend fun insertBill(bill: Bill) {
-        financeDao.insertBill(bill)
+    suspend fun insertBill(bill: Bill): Long {
+        return financeDao.insertBill(bill)
     }
 
     suspend fun updateBill(bill: Bill) {
@@ -31,8 +31,8 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.deleteBillById(id)
     }
 
-    suspend fun insertCategory(category: Category) {
-        financeDao.insertCategory(category)
+    suspend fun insertCategory(category: Category): Long {
+        return financeDao.insertCategory(category)
     }
 
     suspend fun updateCategory(category: Category) {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "506540924837",
+    "project_id": "apk-laporan-keuangan",
+    "storage_bucket": "apk-laporan-keuangan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:506540924837:android:355b440c96d284f3c2524c",
+        "android_client_info": {
+          "package_name": "com.aistudio.keuanganku.fpmclb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1xnB7xsDBX06Efz8BnQ39V7ESwkQ7ur0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
