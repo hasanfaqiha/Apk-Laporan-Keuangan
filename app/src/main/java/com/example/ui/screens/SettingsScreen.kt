@@ -379,20 +379,13 @@ fun InfoAndFaqSection(
     val context = LocalContext.current
     val syncManager = viewModel.syncManager
 
-    var isLoggedIn by remember { mutableStateOf(syncManager.isLoggedIn) }
-    var userEmail by remember { mutableStateOf(syncManager.currentUserEmail ?: "") }
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val userEmail by viewModel.currentUserEmail.collectAsState()
 
     var emailText by remember { mutableStateOf("") }
     var passwordText by remember { mutableStateOf("") }
     var isRegisterMode by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener { auth ->
-            isLoggedIn = auth.currentUser != null
-            userEmail = auth.currentUser?.email ?: ""
-        }
-    }
 
     Column(
         modifier = Modifier

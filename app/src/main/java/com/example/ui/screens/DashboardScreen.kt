@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,6 +68,7 @@ fun DashboardScreen(
     viewModel: FinanceViewModel,
     onNavigateToTransactions: () -> Unit,
     onNavigateToBills: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onQuickAddClick: (String) -> Unit, // "INCOME" or "EXPENSE"
     modifier: Modifier = Modifier
 ) {
@@ -72,6 +76,9 @@ fun DashboardScreen(
     val allTransactions by viewModel.transactions.collectAsState()
     val recentTransactions = allTransactions.take(4)
     val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val currentUserEmail by viewModel.currentUserEmail.collectAsState()
 
     LazyColumn(
         modifier = modifier
@@ -119,6 +126,15 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+
+        // Cloud Sync connection status badge
+        item {
+            CloudConnectionStatusBadge(
+                isLoggedIn = isLoggedIn,
+                email = currentUserEmail,
+                onClick = onNavigateToSettings
+            )
         }
 
         // App Hero Banner Card (Total Saldo Tersedia)
@@ -767,6 +783,82 @@ fun TransactionListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun CloudConnectionStatusBadge(
+    isLoggedIn: Boolean,
+    email: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isLoggedIn) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        } else {
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        },
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isLoggedIn) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            } else {
+                MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+            }
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .testTag("cloud_connection_badge")
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Icon(
+                imageVector = if (isLoggedIn) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = if (isLoggedIn) {
+                    Color(0xFF10B981)
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.size(20.dp)
+            )
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isLoggedIn) "Sinkronisasi Cloud Aktif" else "Mode Offline (Penyimpanan Lokal)",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (isLoggedIn && !email.isNullOrBlank()) {
+                    Text(
+                        text = "Terhubung dengan: $email",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Ketuk untuk hubungkan & amankan data online",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

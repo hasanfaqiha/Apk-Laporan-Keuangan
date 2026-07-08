@@ -27,6 +27,24 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     val syncManager = FirebaseSyncManager(repository)
 
+    val isLoggedIn = MutableStateFlow(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null)
+    val currentUserEmail = MutableStateFlow(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email)
+    val hasSkippedAuth = MutableStateFlow(false)
+
+    init {
+        com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            val user = auth.currentUser
+            isLoggedIn.value = user != null
+            currentUserEmail.value = user?.email
+            if (user != null) {
+                syncManager.startRealtimeSync(viewModelScope)
+            } else {
+                syncManager.stopRealtimeSync()
+                hasSkippedAuth.value = false
+            }
+        }
+    }
+
     // List of transactions
     val transactions: StateFlow<List<Transaction>> = repository.allTransactions
         .stateIn(

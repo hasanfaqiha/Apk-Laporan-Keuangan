@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.DocumentChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -15,6 +17,10 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
 
     private val auth: FirebaseAuth get() = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore get() = FirebaseFirestore.getInstance()
+
+    private var transactionsListener: ListenerRegistration? = null
+    private var billsListener: ListenerRegistration? = null
+    private var categoriesListener: ListenerRegistration? = null
 
     val currentUserEmail: String?
         get() = auth.currentUser?.email
@@ -243,5 +249,147 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                 onFailure(e)
             }
         }
+    }
+
+    // --- Real-time Bi-directional Firestore Listener ---
+    fun startRealtimeSync(coroutineScope: CoroutineScope) {
+        val uid = userId ?: return
+        
+        // Stop any existing listeners first to avoid memory leaks
+        stopRealtimeSync()
+
+        Log.d("FirebaseSync", "Starting real-time synchronization for user: $uid")
+
+        // 1. Listen for Transactions
+        transactionsListener = db.collection("users").document(uid).collection("transactions")
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    Log.e("FirebaseSync", "Transactions listener failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshots != null) {
+                    coroutineScope.launch {
+                        for (dc in snapshots.documentChanges) {
+                            val doc = dc.document
+                            val id = doc.getLong("id")?.toInt() ?: continue
+                            when (dc.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val title = doc.getString("title") ?: ""
+                                    val amount = doc.getDouble("amount") ?: 0.0
+                                    val type = doc.getString("type") ?: ""
+                                    val accountType = doc.getString("accountType") ?: ""
+                                    val category = doc.getString("category") ?: ""
+                                    val dateMillis = doc.getLong("dateMillis") ?: System.currentTimeMillis()
+                                    val note = doc.getString("note") ?: ""
+                                    
+                                    repository.insertTransaction(
+                                        Transaction(
+                                            id = id,
+                                            title = title,
+                                            amount = amount,
+                                            type = type,
+                                            accountType = accountType,
+                                            category = category,
+                                            dateMillis = dateMillis,
+                                            note = note
+                                        )
+                                    )
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    repository.deleteTransactionById(id)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        // 2. Listen for Bills
+        billsListener = db.collection("users").document(uid).collection("bills")
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    Log.e("FirebaseSync", "Bills listener failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshots != null) {
+                    coroutineScope.launch {
+                        for (dc in snapshots.documentChanges) {
+                            val doc = dc.document
+                            val id = doc.getLong("id")?.toInt() ?: continue
+                            when (dc.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val title = doc.getString("title") ?: ""
+                                    val amount = doc.getDouble("amount") ?: 0.0
+                                    val dueDateMillis = doc.getLong("dueDateMillis") ?: System.currentTimeMillis()
+                                    val isPaid = doc.getBoolean("isPaid") ?: false
+                                    val category = doc.getString("category") ?: ""
+                                    val note = doc.getString("note") ?: ""
+                                    
+                                    repository.insertBill(
+                                        Bill(
+                                            id = id,
+                                            title = title,
+                                            amount = amount,
+                                            dueDateMillis = dueDateMillis,
+                                            isPaid = isPaid,
+                                            category = category,
+                                            note = note
+                                        )
+                                    )
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    repository.deleteBillById(id)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        // 3. Listen for Categories
+        categoriesListener = db.collection("users").document(uid).collection("categories")
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    Log.e("FirebaseSync", "Categories listener failed", error)
+                    return@addSnapshotListener
+                }
+                if (snapshots != null) {
+                    coroutineScope.launch {
+                        for (dc in snapshots.documentChanges) {
+                            val doc = dc.document
+                            val id = doc.getLong("id")?.toInt() ?: continue
+                            when (dc.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val name = doc.getString("name") ?: ""
+                                    val type = doc.getString("type") ?: ""
+                                    
+                                    repository.insertCategory(
+                                        Category(
+                                            id = id,
+                                            name = name,
+                                            type = type
+                                        )
+                                    )
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    val name = doc.getString("name") ?: ""
+                                    val type = doc.getString("type") ?: ""
+                                    repository.deleteCategory(Category(id = id, name = name, type = type))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+    }
+
+    fun stopRealtimeSync() {
+        Log.d("FirebaseSync", "Stopping real-time synchronization")
+        transactionsListener?.remove()
+        transactionsListener = null
+        billsListener?.remove()
+        billsListener = null
+        categoriesListener?.remove()
+        categoriesListener = null
     }
 }

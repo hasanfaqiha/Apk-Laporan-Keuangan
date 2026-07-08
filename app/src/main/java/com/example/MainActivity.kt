@@ -39,6 +39,7 @@ import com.example.ui.screens.BillsScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.TransactionsScreen
+import com.example.ui.screens.AuthGateScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.FinanceViewModelFactory
@@ -73,12 +74,24 @@ class MainActivity : ComponentActivity() {
                 else -> androidx.compose.foundation.isSystemInDarkTheme()
             }
 
+            val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+            val hasSkippedAuth by viewModel.hasSkippedAuth.collectAsState()
+
             MyApplicationTheme(darkTheme = darkTheme) {
                 androidx.compose.material3.Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    FinanceAppFrame(viewModel = viewModel)
+                    if (isLoggedIn || hasSkippedAuth) {
+                        FinanceAppFrame(viewModel = viewModel)
+                    } else {
+                        AuthGateScreen(
+                            viewModel = viewModel,
+                            onSkip = {
+                                viewModel.hasSkippedAuth.value = true
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -135,6 +148,7 @@ fun FinanceAppFrame(viewModel: FinanceViewModel) {
                         viewModel = viewModel,
                         onNavigateToTransactions = { currentTab = FinanceTab.TRANSACTIONS },
                         onNavigateToBills = { currentTab = FinanceTab.BILLS },
+                        onNavigateToSettings = { currentTab = FinanceTab.SETTINGS },
                         onQuickAddClick = { type ->
                             initialFormType = type
                             showAddFormInitially = true
