@@ -14,6 +14,9 @@ interface FinanceDao {
     @Query("SELECT * FROM transactions ORDER BY dateMillis DESC")
     fun getAllTransactions(): Flow<List<Transaction>>
 
+    @Query("SELECT * FROM transactions ORDER BY dateMillis DESC")
+    suspend fun getAllTransactionsDirect(): List<Transaction>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction): Long
 
@@ -27,6 +30,9 @@ interface FinanceDao {
     @Query("SELECT * FROM bills ORDER BY dueDateMillis ASC")
     fun getAllBills(): Flow<List<Bill>>
 
+    @Query("SELECT * FROM bills ORDER BY dueDateMillis ASC")
+    suspend fun getAllBillsDirect(): List<Bill>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBill(bill: Bill): Long
 
@@ -39,6 +45,9 @@ interface FinanceDao {
     // --- Categories ---
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun getAllCategories(): Flow<List<Category>>
+
+    @Query("SELECT * FROM categories ORDER BY name ASC")
+    suspend fun getAllCategoriesDirect(): List<Category>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: Category): Long

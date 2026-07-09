@@ -114,7 +114,10 @@ fun DashboardScreen(
                     shape = CircleShape,
                     color = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFE0E7FF), // bg-indigo-100 equivalent
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC7D2FE).copy(alpha = 0.5f)),
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable { onNavigateToSettings() }
+                        .testTag("dashboard_profile_button")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(

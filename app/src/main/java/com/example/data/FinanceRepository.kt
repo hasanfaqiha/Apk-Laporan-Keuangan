@@ -7,6 +7,18 @@ class FinanceRepository(private val financeDao: FinanceDao) {
     val allBills: Flow<List<Bill>> = financeDao.getAllBills()
     val allCategories: Flow<List<Category>> = financeDao.getAllCategories()
 
+    suspend fun getAllTransactionsDirect(): List<Transaction> {
+        return financeDao.getAllTransactionsDirect()
+    }
+
+    suspend fun getAllBillsDirect(): List<Bill> {
+        return financeDao.getAllBillsDirect()
+    }
+
+    suspend fun getAllCategoriesDirect(): List<Category> {
+        return financeDao.getAllCategoriesDirect()
+    }
+
     suspend fun insertTransaction(transaction: Transaction): Long {
         return financeDao.insertTransaction(transaction)
     }
