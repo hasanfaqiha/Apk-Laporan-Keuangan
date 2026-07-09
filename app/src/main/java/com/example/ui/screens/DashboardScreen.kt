@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
@@ -49,6 +50,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +94,7 @@ fun DashboardScreen(
 
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val currentUserEmail by viewModel.currentUserEmail.collectAsState()
+    val lastSyncError by viewModel.syncManager.lastError.collectAsState()
 
     LazyColumn(
         modifier = modifier
@@ -140,10 +156,67 @@ fun DashboardScreen(
             )
         }
 
+        if (lastSyncError != null) {
+            item {
+                AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Error Sync",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Connection Error",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    text = lastSyncError!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                )
+                            }
+                            IconButton(onClick = { viewModel.syncManager.clearLastError() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Tutup",
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // App Hero Banner Card (Total Saldo Tersedia)
         item {
+            var balanceVisible by remember { mutableStateOf(true) }
             HeroHeaderSection(
-                totalBalance = summary.totalBalance
+                totalBalance = summary.totalBalance,
+                balanceVisible = balanceVisible,
+                onToggleVisibility = { balanceVisible = !balanceVisible }
             )
         }
 
@@ -170,6 +243,11 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        // Quick Logging Actions
+        item {
+            QuickActionsSection(onQuickAddClick = onQuickAddClick)
         }
 
         // Credit Card Spending Card (Liability)
@@ -252,11 +330,6 @@ fun DashboardScreen(
                     onClick = onNavigateToBills
                 )
             }
-        }
-
-        // Quick Logging Actions
-        item {
-            QuickActionsSection(onQuickAddClick = onQuickAddClick)
         }
 
         // Recent Activity Header
@@ -342,6 +415,8 @@ fun DashboardScreen(
 @Composable
 fun HeroHeaderSection(
     totalBalance: Double,
+    balanceVisible: Boolean,
+    onToggleVisibility: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.red < 0.2f
@@ -349,14 +424,14 @@ fun HeroHeaderSection(
         Brush.verticalGradient(
             colors = listOf(
                 Color(0xFF1E1B4B), // Very deep Indigo 950
-                Color(0xFF312E81)  // Indigo 900
+                Color(0xFF0F172A)  // Dark slate 900
             )
         )
     } else {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFF4F46E5), // Indigo 600
-                Color(0xFF6366F1)  // Indigo 500
+                Color(0xFF3F3D56), // Cool Grey/Purple
+                Color(0xFF1A1926)  // Slate Navy
             )
         )
     }
@@ -374,66 +449,238 @@ fun HeroHeaderSection(
                 .background(bgGradient)
                 .padding(24.dp)
         ) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val strokeColor = Color.White.copy(alpha = 0.04f)
+                val strokeWidth = 1f
+                val step = 40f
+                for (x in 0..size.width.toInt() step step.toInt()) {
+                    drawLine(strokeColor, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), strokeWidth)
+                }
+                for (y in 0..size.height.toInt() step step.toInt()) {
+                    drawLine(strokeColor, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth)
+                }
+            }
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
             ) {
-                Text(
-                    text = "Total Saldo Tersedia",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFFC7D2FE), // light indigo 200
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = formatRupiah(totalBalance),
-                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Overlapping visual circles to replicate the card aesthetic
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy((-10).dp),
+                        horizontalArrangement = Arrangement.spacedBy((-12).dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f))
-                                .border(1.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                .background(Color.White.copy(alpha = 0.25f))
                         )
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.4f))
-                                .border(1.5.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                                .background(Color.White.copy(alpha = 0.15f))
                         )
                     }
-
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.20f),
-                        modifier = Modifier.clip(CircleShape)
+                    
+                    Text(
+                        text = "VISA",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.5.sp
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(28.dp))
+                
+                Text(
+                    text = "Total balance",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFFC7D2FE).copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = if (balanceVisible) formatRupiah(totalBalance) else "••••••••",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    Icon(
+                        imageVector = if (balanceVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = "Toggle saldo",
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable { onToggleVisibility() }
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Platinum Card •••• 2050",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "+2.4% bln ini",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = "Active",
                             color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun CircularActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .background(
+                    color = if (isDark) Color(0xFF16171F) else Color(0xFFF1F5F9),
+                    shape = CircleShape
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (isDark) Color(0xFF2E313C).copy(alpha = 0.5f) else Color(0xFFE2E8F0),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isDark) Color(0xFF818CF8) else Color(0xFF4F46E5),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun JointWalletCard(
+    title: String,
+    balance: Double,
+    membersCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f) else Color(0xFFF1F5F9)
+        ),
+        modifier = modifier.width(180.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy((-8).dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(membersCount.coerceAtMost(3)) { index ->
+                    val color = when(index) {
+                        0 -> Color(0xFF3B82F6)
+                        1 -> Color(0xFF10B981)
+                        else -> Color(0xFFEC4899)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(1.dp, Color.White, CircleShape)
+                    )
+                }
+                if (membersCount > 3) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF475569))
+                            .border(1.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("+${membersCount - 3}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Balance",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formatRupiah(balance),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

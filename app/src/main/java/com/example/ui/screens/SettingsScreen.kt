@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.Category
+import com.example.data.SyncLog
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.formatRupiah
 
@@ -108,8 +109,14 @@ fun SettingsScreen(
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Info & Fitur", fontWeight = FontWeight.Bold) },
+                    text = { Text("Info & Fitur", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                     icon = { Icon(Icons.Default.Info, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    text = { Text("Log Cloud", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                    icon = { Icon(Icons.Default.Dns, contentDescription = null) }
                 )
             }
 
@@ -158,6 +165,16 @@ fun SettingsScreen(
                         onThemeSelected = { theme ->
                             viewModel.setTheme(theme, context)
                         }
+                    )
+                }
+                3 -> {
+                    val syncLogs by viewModel.syncManager.syncLogs.collectAsState()
+                    val lastError by viewModel.syncManager.lastError.collectAsState()
+                    CloudLogMonitorSection(
+                        syncLogs = syncLogs,
+                        lastError = lastError,
+                        onClearLogs = { viewModel.syncManager.clearLogs() },
+                        onClearError = { viewModel.syncManager.clearLastError() }
                     )
                 }
             }

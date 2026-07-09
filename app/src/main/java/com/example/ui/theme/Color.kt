@@ -24,9 +24,9 @@ val EmeraldSuccess = Color(0xFF10B981)     // Emerald 500
 val BlueInfo = Color(0xFF3B82F6)           // Blue 500
 
 // Dark theme background colors
-val SlateDarkBackground = Color(0xFF0F172A) // Slate 900
-val SlateDarkSurface = Color(0xFF1E293B)    // Slate 800
-val SlateDarkOnSurface = Color(0xFFF8FAFC)  // Slate 50
+val SlateDarkBackground = Color(0xFF090A0F) // Premium rich black
+val SlateDarkSurface = Color(0xFF16171F)    // Premium charcoal slate card surface
+val SlateDarkOnSurface = Color(0xFFF1F5F9)  // Clean crisp slate white
 
 // Light theme background colors
 val SlateLightBackground = Color(0xFFF8FAFC)// Slate 50
