@@ -193,6 +193,7 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     fun addTransaction(title: String, amount: Double, type: String, accountType: String, category: String, dateMillis: Long, note: String) {
         viewModelScope.launch {
             val transaction = Transaction(
+                id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
                 title = title,
                 amount = amount,
                 type = type,
@@ -201,9 +202,9 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
                 dateMillis = dateMillis,
                 note = note
             )
-            val newId = repository.insertTransaction(transaction)
+            repository.insertTransaction(transaction)
             if (syncManager.isLoggedIn) {
-                syncManager.syncTransactionToCloud(transaction.copy(id = newId.toInt()))
+                syncManager.syncTransactionToCloud(transaction)
             }
         }
     }
@@ -221,15 +222,16 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     fun addBill(title: String, amount: Double, dueDateMillis: Long, category: String, note: String, context: Context? = null) {
         viewModelScope.launch {
             val bill = Bill(
+                id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
                 title = title,
                 amount = amount,
                 dueDateMillis = dueDateMillis,
                 category = category,
                 note = note
             )
-            val newId = repository.insertBill(bill)
+            repository.insertBill(bill)
             if (syncManager.isLoggedIn) {
-                syncManager.syncBillToCloud(bill.copy(id = newId.toInt()))
+                syncManager.syncBillToCloud(bill)
             }
             context?.let { triggerBillReminders(it) }
         }
@@ -362,16 +364,19 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
                             dueCal.set(Calendar.MINUTE, 0)
                             dueCal.set(Calendar.SECOND, 0)
 
-                            repository.insertBill(
-                                Bill(
-                                    title = billTitle,
-                                    amount = totalAmount,
-                                    dueDateMillis = dueCal.timeInMillis,
-                                    isPaid = false,
-                                    category = "Sewa & Tagihan",
-                                    note = "Akumulasi belanja Kartu Kredit selama bulan $monthName $year"
-                                )
+                            val bill = Bill(
+                                id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
+                                title = billTitle,
+                                amount = totalAmount,
+                                dueDateMillis = dueCal.timeInMillis,
+                                isPaid = false,
+                                category = "Sewa & Tagihan",
+                                note = "Akumulasi belanja Kartu Kredit selama bulan $monthName $year"
                             )
+                            repository.insertBill(bill)
+                            if (syncManager.isLoggedIn) {
+                                syncManager.syncBillToCloud(bill)
+                            }
                         }
                     }
                 }
@@ -384,10 +389,14 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     // Category actions
     fun addCategory(name: String, type: String) {
         viewModelScope.launch {
-            val category = Category(name = name, type = type)
-            val newId = repository.insertCategory(category)
+            val category = Category(
+                id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
+                name = name,
+                type = type
+            )
+            repository.insertCategory(category)
             if (syncManager.isLoggedIn) {
-                syncManager.syncCategoryToCloud(category.copy(id = newId.toInt()))
+                syncManager.syncCategoryToCloud(category)
             }
         }
     }

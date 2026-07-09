@@ -9,8 +9,10 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.DocumentChange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.google.android.gms.tasks.Tasks
 import java.lang.Exception
 
 class FirebaseSyncManager(private val repository: FinanceRepository) {
@@ -129,32 +131,62 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
             try {
-                // 1. Sync Categories
+                // 1. Re-index local categories if they have auto-increment IDs (< 1000000) to avoid cloud clashing
                 val localCategories = repository.allCategories.first()
-                // Upload local categories
                 for (cat in localCategories) {
+                    if (cat.id < 1000000) {
+                        val newId = kotlin.random.Random.nextInt(1000000, 2_000_000_000)
+                        repository.deleteCategory(cat)
+                        repository.insertCategory(cat.copy(id = newId))
+                    }
+                }
+
+                // 2. Re-index local transactions if they have auto-increment IDs (< 1000000)
+                val localTransactions = repository.allTransactions.first()
+                for (t in localTransactions) {
+                    if (t.id < 1000000) {
+                        val newId = kotlin.random.Random.nextInt(1000000, 2_000_000_000)
+                        repository.deleteTransactionById(t.id)
+                        repository.insertTransaction(t.copy(id = newId))
+                    }
+                }
+
+                // 3. Re-index local bills if they have auto-increment IDs (< 1000000)
+                val localBills = repository.allBills.first()
+                for (b in localBills) {
+                    if (b.id < 1000000) {
+                        val newId = kotlin.random.Random.nextInt(1000000, 2_000_000_000)
+                        repository.deleteBillById(b.id)
+                        repository.insertBill(b.copy(id = newId))
+                    }
+                }
+
+                // --- START SEQUENTIAL SYNC WITH CLOUD ---
+
+                // 1. Sync Categories
+                val updatedLocalCategories = repository.allCategories.first()
+                // Upload local categories to cloud
+                for (cat in updatedLocalCategories) {
                     val docData = hashMapOf("id" to cat.id, "name" to cat.name, "type" to cat.type)
-                    db.collection("users").document(uid)
+                    val setTask = db.collection("users").document(uid)
                         .collection("categories").document(cat.id.toString())
                         .set(docData, SetOptions.merge())
+                    Tasks.await(setTask)
                 }
                 // Download cloud categories and save to local
-                db.collection("users").document(uid).collection("categories").get()
-                    .addOnSuccessListener { snapshot ->
-                        scope.launch {
-                            for (doc in snapshot.documents) {
-                                val id = doc.getLong("id")?.toInt() ?: continue
-                                val name = doc.getString("name") ?: continue
-                                val type = doc.getString("type") ?: continue
-                                repository.insertCategory(Category(id = id, name = name, type = type))
-                            }
-                        }
-                    }
+                val getCatTask = db.collection("users").document(uid).collection("categories").get()
+                val catSnapshot = Tasks.await(getCatTask)
+                for (doc in catSnapshot.documents) {
+                    val id = doc.getLong("id")?.toInt() ?: continue
+                    val name = doc.getString("name") ?: continue
+                    val type = doc.getString("type") ?: continue
+                    repository.insertCategory(Category(id = id, name = name, type = type))
+                }
 
                 // 2. Sync Transactions
-                val localTransactions = repository.allTransactions.first()
-                // Upload local transactions
-                for (t in localTransactions) {
+                val updatedLocalTransactions = repository.allTransactions.first()
+                // Upload local transactions to cloud
+                for (t in updatedLocalTransactions) {
                     val docData = hashMapOf(
                         "id" to t.id,
                         "title" to t.title,
@@ -165,43 +197,41 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         "dateMillis" to t.dateMillis,
                         "note" to t.note
                     )
-                    db.collection("users").document(uid)
+                    val setTransTask = db.collection("users").document(uid)
                         .collection("transactions").document(t.id.toString())
                         .set(docData, SetOptions.merge())
+                    Tasks.await(setTransTask)
                 }
                 // Download cloud transactions and save to local
-                db.collection("users").document(uid).collection("transactions").get()
-                    .addOnSuccessListener { snapshot ->
-                        scope.launch {
-                            for (doc in snapshot.documents) {
-                                val id = doc.getLong("id")?.toInt() ?: continue
-                                val title = doc.getString("title") ?: continue
-                                val amount = doc.getDouble("amount") ?: 0.0
-                                val type = doc.getString("type") ?: continue
-                                val accountType = doc.getString("accountType") ?: continue
-                                val category = doc.getString("category") ?: continue
-                                val dateMillis = doc.getLong("dateMillis") ?: System.currentTimeMillis()
-                                val note = doc.getString("note") ?: ""
-                                repository.insertTransaction(
-                                    Transaction(
-                                        id = id,
-                                        title = title,
-                                        amount = amount,
-                                        type = type,
-                                        accountType = accountType,
-                                        category = category,
-                                        dateMillis = dateMillis,
-                                        note = note
-                                    )
-                                )
-                            }
-                        }
-                    }
+                val getTransTask = db.collection("users").document(uid).collection("transactions").get()
+                val transSnapshot = Tasks.await(getTransTask)
+                for (doc in transSnapshot.documents) {
+                    val id = doc.getLong("id")?.toInt() ?: continue
+                    val title = doc.getString("title") ?: continue
+                    val amount = doc.getDouble("amount") ?: 0.0
+                    val type = doc.getString("type") ?: continue
+                    val accountType = doc.getString("accountType") ?: continue
+                    val category = doc.getString("category") ?: continue
+                    val dateMillis = doc.getLong("dateMillis") ?: System.currentTimeMillis()
+                    val note = doc.getString("note") ?: ""
+                    repository.insertTransaction(
+                        Transaction(
+                            id = id,
+                            title = title,
+                            amount = amount,
+                            type = type,
+                            accountType = accountType,
+                            category = category,
+                            dateMillis = dateMillis,
+                            note = note
+                        )
+                    )
+                }
 
                 // 3. Sync Bills
-                val localBills = repository.allBills.first()
-                // Upload local bills
-                for (b in localBills) {
+                val updatedLocalBills = repository.allBills.first()
+                // Upload local bills to cloud
+                for (b in updatedLocalBills) {
                     val docData = hashMapOf(
                         "id" to b.id,
                         "title" to b.title,
@@ -211,42 +241,43 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         "category" to b.category,
                         "note" to b.note
                     )
-                    db.collection("users").document(uid)
+                    val setBillTask = db.collection("users").document(uid)
                         .collection("bills").document(b.id.toString())
                         .set(docData, SetOptions.merge())
+                    Tasks.await(setBillTask)
                 }
                 // Download cloud bills and save to local
-                db.collection("users").document(uid).collection("bills").get()
-                    .addOnSuccessListener { snapshot ->
-                        scope.launch {
-                            for (doc in snapshot.documents) {
-                                val id = doc.getLong("id")?.toInt() ?: continue
-                                val title = doc.getString("title") ?: continue
-                                val amount = doc.getDouble("amount") ?: 0.0
-                                val dueDateMillis = doc.getLong("dueDateMillis") ?: System.currentTimeMillis()
-                                val isPaid = doc.getBoolean("isPaid") ?: false
-                                val category = doc.getString("category") ?: continue
-                                val note = doc.getString("note") ?: ""
-                                repository.insertBill(
-                                    Bill(
-                                        id = id,
-                                        title = title,
-                                        amount = amount,
-                                        dueDateMillis = dueDateMillis,
-                                        isPaid = isPaid,
-                                        category = category,
-                                        note = note
-                                    )
-                                )
-                            }
-                            // Notify UI on success
-                            onSuccess()
-                        }
-                    }
+                val getBillTask = db.collection("users").document(uid).collection("bills").get()
+                val billSnapshot = Tasks.await(getBillTask)
+                for (doc in billSnapshot.documents) {
+                    val id = doc.getLong("id")?.toInt() ?: continue
+                    val title = doc.getString("title") ?: continue
+                    val amount = doc.getDouble("amount") ?: 0.0
+                    val dueDateMillis = doc.getLong("dueDateMillis") ?: System.currentTimeMillis()
+                    val isPaid = doc.getBoolean("isPaid") ?: false
+                    val category = doc.getString("category") ?: continue
+                    val note = doc.getString("note") ?: ""
+                    repository.insertBill(
+                        Bill(
+                            id = id,
+                            title = title,
+                            amount = amount,
+                            dueDateMillis = dueDateMillis,
+                            isPaid = isPaid,
+                            category = category,
+                            note = note
+                        )
+                    )
+                }
 
+                withContext(Dispatchers.Main) {
+                    onSuccess()
+                }
             } catch (e: Exception) {
                 Log.e("FirebaseSync", "Error in sync", e)
-                onFailure(e)
+                withContext(Dispatchers.Main) {
+                    onFailure(e)
+                }
             }
         }
     }
