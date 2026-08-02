@@ -40,6 +40,7 @@ enum class AccountType {
 }
 
 enum class RecurringInterval {
+    NONE,
     DAILY,
     WEEKLY,
     MONTHLY,

@@ -27,6 +27,27 @@ data class FinanceSummary(
 )
 
 /**
+ * Daily expense for trend analysis
+ */
+data class DailyExpense(
+    val date: Long,
+    val amount: Double,
+    val transactionCount: Int = 0
+)
+
+/**
+ * Monthly comparison for year-over-year or month-over-month analysis
+ */
+data class MonthlyComparison(
+    val month: String,
+    val monthNumber: Int,
+    val year: Int,
+    val income: Double,
+    val expense: Double,
+    val netSavings: Double
+)
+
+/**
  * Category expense with percentage calculation
  */
 data class CategoryExpense(

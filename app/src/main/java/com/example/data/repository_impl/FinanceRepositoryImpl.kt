@@ -74,20 +74,25 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     private fun com.example.data.local.TransactionEntity.toDomain(): Transaction {
+        val category = Category(
+            id = categoryId,
+            name = categoryName,
+            icon = categoryIcon,
+            color = categoryColor
+        )
         return Transaction(
             id = id,
             title = title,
-            type = TransactionType.valueOf(type),
             amount = amount,
+            type = TransactionType.valueOf(type),
             accountType = com.example.domain.model.AccountType.valueOf(accountType),
-            categoryId = categoryId,
-            categoryName = categoryName,
-            categoryIcon = categoryIcon,
-            categoryColor = categoryColor,
+            category = category,
             date = java.util.Date(date),
             note = note,
             isRecurring = isRecurring,
-            recurringInterval = recurringInterval?.let { RecurringInterval.valueOf(it) } ?: RecurringInterval.NONE,
+            recurringInterval = recurringInterval?.let { 
+                try { RecurringInterval.valueOf(it) } catch (e: Exception) { null } 
+            },
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
             createdAt = createdAt,
@@ -99,17 +104,17 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
         return com.example.data.local.TransactionEntity(
             id = id,
             title = title,
-            type = type.name,
             amount = amount,
+            type = type.name,
             accountType = accountType.name,
-            categoryId = categoryId,
-            categoryName = categoryName,
-            categoryIcon = categoryIcon,
-            categoryColor = categoryColor,
+            categoryId = category.id,
+            categoryName = category.name,
+            categoryIcon = category.icon,
+            categoryColor = category.color,
             date = date.time,
             note = note,
             isRecurring = isRecurring,
-            recurringInterval = if (recurringInterval != RecurringInterval.NONE) recurringInterval.name else null,
+            recurringInterval = recurringInterval?.name,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
             createdAt = createdAt,
@@ -118,20 +123,25 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     private fun com.example.data.local.BillEntity.toDomain(): Bill {
-        val status = if (isPaid) BillStatus.PAID else BillStatus.UPCOMING
+        val category = Category(
+            id = categoryId,
+            name = categoryName,
+            icon = categoryIcon,
+            color = categoryColor
+        )
         return Bill(
             id = id,
             title = title,
             amount = amount,
             dueDate = java.util.Date(dueDate),
-            status = status,
-            categoryId = categoryId,
-            categoryName = categoryName,
-            categoryIcon = categoryIcon,
-            categoryColor = categoryColor,
+            isPaid = isPaid,
+            paidDate = paidDate?.let { java.util.Date(it) },
+            category = category,
             note = note,
             isRecurring = isRecurring,
-            recurringInterval = recurringInterval?.let { RecurringInterval.valueOf(it) } ?: RecurringInterval.NONE,
+            recurringInterval = recurringInterval?.let { 
+                try { RecurringInterval.valueOf(it) } catch (e: Exception) { null } 
+            },
             reminderDaysBefore = reminderDaysBefore,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
@@ -146,15 +156,15 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
             title = title,
             amount = amount,
             dueDate = dueDate.time,
-            isPaid = status == BillStatus.PAID,
-            paidDate = null, // Will be set when marked as paid
-            categoryId = categoryId,
-            categoryName = categoryName,
-            categoryIcon = categoryIcon,
-            categoryColor = categoryColor,
+            isPaid = isPaid,
+            paidDate = paidDate?.time,
+            categoryId = category.id,
+            categoryName = category.name,
+            categoryIcon = category.icon,
+            categoryColor = category.color,
             note = note,
             isRecurring = isRecurring,
-            recurringInterval = if (recurringInterval != RecurringInterval.NONE) recurringInterval.name else null,
+            recurringInterval = recurringInterval?.name,
             reminderDaysBefore = reminderDaysBefore,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
