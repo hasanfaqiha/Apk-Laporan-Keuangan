@@ -26,6 +26,8 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
+      with:
+        cache-disabled: true # Disable cache to prevent corruption errors
 
     - name: Create Google Services JSON (Optional)
       env:
@@ -42,7 +44,7 @@ jobs:
         fi
 
     - name: Build Debug APK
-      run: gradle assembleDebug --stacktrace
+      run: gradle assembleDebug --no-daemon --stacktrace
 
     - name: Upload Debug APK to Artifacts
       uses: actions/upload-artifact@v4
