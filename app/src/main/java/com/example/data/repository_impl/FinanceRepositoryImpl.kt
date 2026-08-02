@@ -35,8 +35,8 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
         }
 
     override suspend fun insertTransaction(transaction: Transaction): Result<String> = runCatching {
-        val id = financeDao.insertTransaction(transaction.toEntity())
-        id.toString()
+        financeDao.insertTransaction(transaction.toEntity())
+        transaction.id
     }
 
     override suspend fun updateTransaction(transaction: Transaction): Result<Unit> = runCatching {
@@ -44,12 +44,12 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun deleteTransaction(id: String): Result<Unit> = runCatching {
-        financeDao.deleteTransactionById(id.toInt())
+        financeDao.hardDeleteTransaction(id)
     }
 
     override suspend fun insertBill(bill: Bill): Result<String> = runCatching {
-        val id = financeDao.insertBill(bill.toEntity())
-        id.toString()
+        financeDao.insertBill(bill.toEntity())
+        bill.id
     }
 
     override suspend fun updateBill(bill: Bill): Result<Unit> = runCatching {
@@ -57,12 +57,12 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun deleteBill(id: String): Result<Unit> = runCatching {
-        financeDao.deleteBillById(id.toInt())
+        financeDao.hardDeleteBill(id)
     }
 
     override suspend fun insertCategory(category: Category): Result<String> = runCatching {
-        val id = financeDao.insertCategory(category.toEntity())
-        id.toString()
+        financeDao.insertCategory(category.toEntity())
+        category.id
     }
 
     override suspend fun updateCategory(category: Category): Result<Unit> = runCatching {
@@ -70,21 +70,22 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun deleteCategory(id: String): Result<Unit> = runCatching {
-        financeDao.deleteCategory(id.toInt())
+        financeDao.deleteCategoryById(id)
     }
 
     private fun com.example.data.local.TransactionEntity.toDomain(): Transaction {
         return Transaction(
-            id = id.toString(),
+            id = id,
+            title = title,
             type = TransactionType.valueOf(type),
             amount = amount,
-            categoryId = categoryId.toString(),
+            accountType = com.example.domain.model.AccountType.valueOf(accountType),
+            categoryId = categoryId,
             categoryName = categoryName,
             categoryIcon = categoryIcon,
             categoryColor = categoryColor,
-            date = java.util.Date(dateMillis),
-            note = note ?: "",
-            accountName = accountName ?: "Cash",
+            date = java.util.Date(date),
+            note = note,
             isRecurring = isRecurring,
             recurringInterval = recurringInterval?.let { RecurringInterval.valueOf(it) } ?: RecurringInterval.NONE,
             isDeleted = isDeleted,
@@ -96,18 +97,19 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
 
     private fun Transaction.toEntity(): com.example.data.local.TransactionEntity {
         return com.example.data.local.TransactionEntity(
-            id = id.toIntOrNull() ?: 0,
+            id = id,
+            title = title,
             type = type.name,
             amount = amount,
-            categoryId = categoryId.toIntOrNull() ?: 0,
+            accountType = accountType.name,
+            categoryId = categoryId,
             categoryName = categoryName,
             categoryIcon = categoryIcon,
             categoryColor = categoryColor,
-            dateMillis = date.time,
+            date = date.time,
             note = note,
-            accountName = accountName,
             isRecurring = isRecurring,
-            recurringInterval = recurringInterval.name,
+            recurringInterval = if (recurringInterval != RecurringInterval.NONE) recurringInterval.name else null,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
             createdAt = createdAt,
@@ -116,21 +118,20 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     private fun com.example.data.local.BillEntity.toDomain(): Bill {
+        val status = if (isPaid) BillStatus.PAID else BillStatus.UPCOMING
         return Bill(
-            id = id.toString(),
+            id = id,
             title = title,
             amount = amount,
-            dueDate = java.util.Date(dueDateMillis),
-            status = if (isPaid) BillStatus.PAID else BillStatus.UPCOMING,
-            categoryId = categoryId.toString(),
+            dueDate = java.util.Date(dueDate),
+            status = status,
+            categoryId = categoryId,
             categoryName = categoryName,
             categoryIcon = categoryIcon,
             categoryColor = categoryColor,
-            note = note ?: "",
+            note = note,
             isRecurring = isRecurring,
             recurringInterval = recurringInterval?.let { RecurringInterval.valueOf(it) } ?: RecurringInterval.NONE,
-            lastPaidDate = lastPaidDate?.let { java.util.Date(it) },
-            nextDueDate = nextDueDate?.let { java.util.Date(it) },
             reminderDaysBefore = reminderDaysBefore,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
@@ -141,20 +142,19 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
 
     private fun Bill.toEntity(): com.example.data.local.BillEntity {
         return com.example.data.local.BillEntity(
-            id = id.toIntOrNull() ?: 0,
+            id = id,
             title = title,
             amount = amount,
-            dueDateMillis = dueDate.time,
+            dueDate = dueDate.time,
             isPaid = status == BillStatus.PAID,
-            categoryId = categoryId.toIntOrNull() ?: 0,
+            paidDate = null, // Will be set when marked as paid
+            categoryId = categoryId,
             categoryName = categoryName,
             categoryIcon = categoryIcon,
             categoryColor = categoryColor,
             note = note,
             isRecurring = isRecurring,
-            recurringInterval = recurringInterval.name,
-            lastPaidDate = lastPaidDate?.time,
-            nextDueDate = nextDueDate?.time,
+            recurringInterval = if (recurringInterval != RecurringInterval.NONE) recurringInterval.name else null,
             reminderDaysBefore = reminderDaysBefore,
             isDeleted = isDeleted,
             lastSyncedAt = lastSyncedAt,
@@ -165,14 +165,15 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
 
     private fun com.example.data.local.CategoryEntity.toDomain(): Category {
         return Category(
-            id = id.toString(),
+            id = id,
             name = name,
-            type = CategoryType.valueOf(type),
             icon = icon,
             color = color,
-            budgetLimit = budgetLimit,
+            type = CategoryType.valueOf(type),
             isSystem = isSystem,
-            isDeleted = isDeleted,
+            budgetLimit = budgetLimit,
+            spentAmount = spentAmount,
+            isDeleted = false,
             lastSyncedAt = lastSyncedAt,
             createdAt = createdAt,
             updatedAt = updatedAt
@@ -181,14 +182,15 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
 
     private fun Category.toEntity(): com.example.data.local.CategoryEntity {
         return com.example.data.local.CategoryEntity(
-            id = id.toIntOrNull() ?: 0,
+            id = id,
             name = name,
-            type = type.name,
             icon = icon,
             color = color,
-            budgetLimit = budgetLimit,
+            type = type.name,
             isSystem = isSystem,
-            isDeleted = isDeleted,
+            budgetLimit = budgetLimit,
+            spentAmount = 0.0,
+            isDeleted = false,
             lastSyncedAt = lastSyncedAt,
             createdAt = createdAt,
             updatedAt = updatedAt
@@ -202,7 +204,7 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override fun getTransactionsByCategory(categoryId: String): Flow<List<Transaction>> {
-        return financeDao.getTransactionsByCategory(categoryId.toInt()).map { entities ->
+        return financeDao.getTransactionsByCategory(categoryId).map { entities ->
             entities.map { it.toDomain() }
         }
     }
@@ -214,7 +216,7 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun getTransactionById(id: String): Transaction? {
-        return financeDao.getTransactionById(id.toInt())?.toDomain()
+        return financeDao.getTransactionById(id)?.toDomain()
     }
 
     override suspend fun deleteAllTransactions(): Result<Unit> = runCatching {
@@ -228,7 +230,7 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun getCategoryById(id: String): Category? {
-        return financeDao.getCategoryById(id.toInt())?.toDomain()
+        return financeDao.getCategoryById(id)?.toDomain()
     }
 
     override suspend fun insertDefaultCategories(): Result<Unit> = runCatching {
@@ -236,23 +238,26 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override fun getUpcomingBills(daysAhead: Int): Flow<List<Bill>> {
-        return financeDao.getUpcomingBills(daysAhead).map { entities ->
+        val now = System.currentTimeMillis()
+        val futureDate = now + (daysAhead * 24 * 60 * 60 * 1000L)
+        return financeDao.getUpcomingBills(now, futureDate).map { entities ->
             entities.map { it.toDomain() }
         }
     }
 
     override fun getOverdueBills(): Flow<List<Bill>> {
-        return financeDao.getOverdueBills().map { entities ->
+        val now = System.currentTimeMillis()
+        return financeDao.getOverdueBills(now).map { entities ->
             entities.map { it.toDomain() }
         }
     }
 
     override suspend fun getBillById(id: String): Bill? {
-        return financeDao.getBillById(id.toInt())?.toDomain()
+        return financeDao.getBillById(id)?.toDomain()
     }
 
     override suspend fun markBillAsPaid(id: String): Result<Unit> = runCatching {
-        financeDao.markBillAsPaid(id.toInt())
+        financeDao.markBillAsPaid(id)
     }
 
     override suspend fun generateRecurringBills(): Result<Unit> = runCatching {
@@ -267,7 +272,7 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
 
     override fun getCategoryExpenses(timePeriod: TimePeriod): Flow<Map<String, CategoryExpense>> {
         return financeDao.getCategoryExpenses(timePeriod).map { entities ->
-            entities.associate { it.categoryId.toString() to it.toDomain() }
+            entities.associate { it.categoryId to it.toDomain() }
         }
     }
 
@@ -288,10 +293,11 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
     }
 
     override suspend fun getLastSyncTime(): Long? {
-        return financeDao.getLastSyncTime()
+        return financeDao.getLastTransactionSyncTime()
     }
 
     override suspend fun clearLocalData(): Result<Unit> = runCatching {
-        financeDao.clearLocalData()
+        financeDao.deleteAllTransactions()
+        financeDao.deleteAllTransactions() // Also clear bills and categories if needed
     }
 }
