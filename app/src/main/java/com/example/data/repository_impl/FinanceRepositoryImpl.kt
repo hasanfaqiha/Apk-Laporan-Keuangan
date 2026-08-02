@@ -146,13 +146,16 @@ class FinanceRepositoryImpl(private val financeDao: FinanceDao) : FinanceReposit
         return transactions.map { txList ->
             val filtered = filterByPeriod(txList, timePeriod)
             val expenses = filtered.filter { it.type == TransactionType.EXPENSE }
+            val totalExpense = expenses.sumOf { it.amount }
+            
             expenses.groupBy { it.categoryId }
-                .mapValues { (_, txs) ->
+                .mapValues { (catId, txs) ->
+                    val firstTx = txs.firstOrNull()
                     CategoryExpense(
-                        categoryId = txs.first().categoryId,
-                        categoryName = txs.first().categoryName,
+                        categoryId = catId,
+                        categoryName = firstTx?.categoryName ?: "Unknown",
                         totalAmount = txs.sumOf { it.amount },
-                        percentage = 0.0,
+                        percentage = if (totalExpense > 0) (txs.sumOf { it.amount } / totalExpense) * 100 else 0.0,
                         transactionCount = txs.size
                     )
                 }
