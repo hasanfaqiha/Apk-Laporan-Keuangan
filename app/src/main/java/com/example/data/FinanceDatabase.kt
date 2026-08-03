@@ -1,27 +1,27 @@
-package com.example.data
+package com.example.data.local
 
-import android.content.Context
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Transaction::class, Bill::class, Category::class], version = 2, exportSchema = false)
+@Database(
+    entities = [TransactionEntity::class, BillEntity::class, CategoryEntity::class],
+    version = 1,
+    exportSchema = false
+)
 abstract class FinanceDatabase : RoomDatabase() {
-    abstract val financeDao: FinanceDao
+    abstract fun financeDao(): FinanceDao
 
     companion object {
         @Volatile
         private var INSTANCE: FinanceDatabase? = null
 
-        fun getDatabase(context: Context): FinanceDatabase {
+        fun getDatabase(androidxContext: android.content.Context): FinanceDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
+                val instance = androidx.room.Room.databaseBuilder(
+                    androidxContext.applicationContext,
                     FinanceDatabase::class.java,
-                    "finance_database"
-                )
-                .fallbackToDestructiveMigration()
-                .build()
+                    "finance_database_v2_unused"
+                ).build()
                 INSTANCE = instance
                 instance
             }
