@@ -75,6 +75,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Transaction
+import com.example.ui.theme.BcaBlue
+import com.example.ui.theme.BcaNavy
+import com.example.ui.theme.BcaNavyDark
+import com.example.ui.theme.BcaSky
+import com.example.ui.theme.BcaSkyBorder
+import com.example.ui.theme.SlateDarkBackground
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.formatRupiah
 
@@ -128,8 +134,8 @@ fun DashboardScreen(
                 }
                 Surface(
                     shape = CircleShape,
-                    color = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFE0E7FF), // bg-indigo-100 equivalent
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC7D2FE).copy(alpha = 0.5f)),
+                    color = if (isDark) MaterialTheme.colorScheme.surface else BcaSky,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BcaSkyBorder),
                     modifier = Modifier
                         .size(40.dp)
                         .clickable { onNavigateToSettings() }
@@ -139,7 +145,7 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = "Profil",
-                            tint = if (isDark) MaterialTheme.colorScheme.primary else Color(0xFF4F46E5),
+                            tint = if (isDark) MaterialTheme.colorScheme.primary else BcaBlue,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -423,15 +429,16 @@ fun HeroHeaderSection(
     val bgGradient = if (isDark) {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFF1E1B4B), // Very deep Indigo 950
-                Color(0xFF0F172A)  // Dark slate 900
+                Color(0xFF1B3A6B), // Deep BCA blue
+                SlateDarkBackground
             )
         )
     } else {
         Brush.verticalGradient(
             colors = listOf(
-                Color(0xFF3F3D56), // Cool Grey/Purple
-                Color(0xFF1A1926)  // Slate Navy
+                BcaBlue,
+                BcaNavy,
+                BcaNavyDark
             )
         )
     }
@@ -489,9 +496,9 @@ fun HeroHeaderSection(
                     }
                     
                     Text(
-                        text = "VISA",
+                        text = "KEUANGANKU",
                         style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = Color.White.copy(alpha = 0.85f),
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.5.sp
                     )
@@ -500,9 +507,9 @@ fun HeroHeaderSection(
                 Spacer(modifier = Modifier.height(28.dp))
                 
                 Text(
-                    text = "Total balance",
+                    text = "Total Saldo",
                     style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFFC7D2FE).copy(alpha = 0.8f),
+                    color = Color(0xFFC8DCEE).copy(alpha = 0.9f),
                     fontWeight = FontWeight.Medium
                 )
                 
@@ -540,7 +547,7 @@ fun HeroHeaderSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Platinum Card •••• 2050",
+                        text = "Kartu Utama •••• 2050",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.5f),
                         fontWeight = FontWeight.Bold
@@ -552,7 +559,7 @@ fun HeroHeaderSection(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Active",
+                            text = "Aktif",
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
@@ -581,12 +588,12 @@ fun CircularActionButton(
             modifier = Modifier
                 .size(60.dp)
                 .background(
-                    color = if (isDark) Color(0xFF16171F) else Color(0xFFF1F5F9),
+                    color = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                     shape = CircleShape
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isDark) Color(0xFF2E313C).copy(alpha = 0.5f) else Color(0xFFE2E8F0),
+                    color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -594,7 +601,7 @@ fun CircularActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isDark) Color(0xFF818CF8) else Color(0xFF4F46E5),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
         }

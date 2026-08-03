@@ -69,7 +69,10 @@ interface FinanceDao {
     
     @Query("DELETE FROM categories WHERE id = :id")
     suspend fun deleteCategoryById(id: String)
-    
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAllCategories()
+
     // ==================== BILL OPERATIONS ====================
     
     @Query("SELECT * FROM bills WHERE isDeleted = 0 ORDER BY dueDate ASC")
@@ -101,7 +104,10 @@ interface FinanceDao {
     
     @Query("DELETE FROM bills WHERE id = :id")
     suspend fun hardDeleteBill(id: String)
-    
+
+    @Query("DELETE FROM bills")
+    suspend fun deleteAllBills()
+
     // ==================== SYNC OPERATIONS ====================
     
     @Query("SELECT MAX(lastSyncedAt) FROM transactions")

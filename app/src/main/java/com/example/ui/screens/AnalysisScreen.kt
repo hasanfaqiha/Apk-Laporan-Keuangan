@@ -201,7 +201,7 @@ fun AnalysisScreen(
                 val mapTotal = activeMap.values.sum()
 
                 sortedList.forEachIndexed { index, (cat, amt) ->
-                    val ratio = (amt / mapTotal).toFloat()
+                    val ratio = if (mapTotal > 0.0) (amt / mapTotal).toFloat() else 0f
                     val color = CategoryPalette.getOrElse(index) { Color.Gray }
 
                     Card(

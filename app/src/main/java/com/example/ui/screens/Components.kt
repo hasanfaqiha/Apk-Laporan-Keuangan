@@ -54,18 +54,18 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// Pre-defined color palette for chart segments
+// Pre-defined color palette for chart segments (BCA-friendly, colour-blind-safe)
 val CategoryPalette = listOf(
-    Color(0xFF4F46E5), // Indigo 600 (Primary)
-    Color(0xFF6366F1), // Indigo 500 (Tertiary Accent)
-    Color(0xFF10B981), // Emerald Success
-    Color(0xFF3B82F6), // Blue Info
-    Color(0xFF00897B), // Teal
-    Color(0xFFAD1457), // Pink/Magenta
-    Color(0xFFEF6C00), // Orange
-    Color(0xFF6A1B9A), // Purple
-    Color(0xFF37474F), // Slate Grey
-    Color(0xFFF9A825)  // Yellow Accent
+    Color(0xFF0D5FA6), // BCA blue
+    Color(0xFFE63329), // BCA red
+    Color(0xFF1E9E58), // green
+    Color(0xFFF5A623), // amber
+    Color(0xFF7B61FF), // violet
+    Color(0xFF00897B), // teal
+    Color(0xFFEC407A), // pink
+    Color(0xFF5C6BC0), // indigo
+    Color(0xFF455A64), // slate
+    Color(0xFFEF6C00)  // orange
 )
 
 // Helper to format date mills to Indonesian format

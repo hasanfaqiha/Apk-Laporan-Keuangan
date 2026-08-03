@@ -159,7 +159,7 @@ fun AuthGateScreen(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null
+                                    contentDescription = if (passwordVisible) "Sembunyikan password" else "Tampilkan password"
                                 )
                             }
                         },

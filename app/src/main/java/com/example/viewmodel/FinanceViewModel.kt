@@ -444,6 +444,67 @@ fun formatRupiah(amount: Double): String {
     }
 }
 
+// Build a CSV document of all transactions (data portability / backup feature)
+fun buildTransactionsCsv(transactions: List<Transaction>): String {
+    val sb = StringBuilder()
+    sb.append("Tanggal,Tipe,Judul,Kategori,Metode Bayar,Jumlah,Catatan\n")
+    val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale("id", "ID"))
+    transactions
+        .sortedByDescending { it.dateMillis }
+        .forEach { tx ->
+            val type = if (tx.type == "INCOME") "Pemasukan" else "Pengeluaran"
+            val account = when (tx.accountType) {
+                "CASH" -> "Tunai"
+                "CREDIT_CARD" -> "Kartu Kredit"
+                else -> "Bank"
+            }
+            sb.append(
+                listOf(
+                    dateFormat.format(java.util.Date(tx.dateMillis)),
+                    type,
+                    escapeCsv(tx.title),
+                    escapeCsv(tx.category),
+                    account,
+                    String.format(java.util.Locale.US, "%.0f", tx.amount),
+                    escapeCsv(tx.note)
+                ).joinToString(",")
+            ).append("\n")
+        }
+    return sb.toString()
+}
+
+// Build a CSV document of all bills (data portability / backup feature)
+fun buildBillsCsv(bills: List<Bill>): String {
+    val sb = StringBuilder()
+    sb.append("Nama,Kategori,Jumlah,Jatuh Tempo,Status,Catatan\n")
+    val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale("id", "ID"))
+    bills
+        .sortedByDescending { it.dueDateMillis }
+        .forEach { bill ->
+            sb.append(
+                listOf(
+                    escapeCsv(bill.title),
+                    escapeCsv(bill.category),
+                    String.format(java.util.Locale.US, "%.0f", bill.amount),
+                    dateFormat.format(java.util.Date(bill.dueDateMillis)),
+                    if (bill.isPaid) "Lunas" else "Belum Bayar",
+                    escapeCsv(bill.note)
+                ).joinToString(",")
+            ).append("\n")
+        }
+    return sb.toString()
+}
+
+// Escape a CSV field per RFC 4180 (quotes doubled, wrapped when needed)
+fun escapeCsv(value: String): String {
+    val escaped = value.replace("\"", "\"\"")
+    return if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n')) {
+        "\"$escaped\""
+    } else {
+        escaped
+    }
+}
+
 // ViewModel Factory
 class FinanceViewModelFactory(private val repository: FinanceRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

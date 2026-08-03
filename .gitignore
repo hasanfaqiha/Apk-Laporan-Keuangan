@@ -84,4 +84,7 @@ coverage.xml
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Android SDK path (machine-specific)
+local.properties
 ```

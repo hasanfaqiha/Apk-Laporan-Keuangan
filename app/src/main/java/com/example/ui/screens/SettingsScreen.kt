@@ -2,6 +2,8 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import android.util.Log
+import android.content.Intent
+import androidx.core.content.FileProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,7 +32,11 @@ import androidx.compose.ui.window.Dialog
 import com.example.data.Category
 import com.example.data.SyncLog
 import com.example.viewmodel.FinanceViewModel
+import com.example.viewmodel.buildBillsCsv
+import com.example.viewmodel.buildTransactionsCsv
 import com.example.viewmodel.formatRupiah
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -858,6 +864,88 @@ fun InfoAndFaqSection(
                         title = "Backend API Sendiri (Ktor / Spring / Express)",
                         desc = "Membuat server backend mandiri (misal menggunakan Kotlin Ktor Server / Node.js) yang terhubung ke database cloud (seperti PostgreSQL / MySQL), lalu mengekspos REST API JSON untuk diakses oleh aplikasi Android ini."
                     )
+                }
+            }
+        }
+
+        // DATA EXPORT CARD
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Cadangkan & Bagikan Data",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Ekspor seluruh transaksi dan tagihan ke file CSV untuk cadangan atau dibuka di spreadsheet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        val txCount = viewModel.transactions.value.size
+                        val billCount = viewModel.bills.value.size
+                        if (txCount == 0 && billCount == 0) {
+                            Toast.makeText(context, "Belum ada data untuk diekspor.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        try {
+                            val exportDir = File(context.cacheDir, "exports")
+                            exportDir.mkdirs()
+                            val txFile = File(exportDir, "transaksi_keuanganku.csv")
+                            val billFile = File(exportDir, "tagihan_keuanganku.csv")
+                            FileOutputStream(txFile).use { it.write(buildTransactionsCsv(viewModel.transactions.value).toByteArray(Charsets.UTF_8)) }
+                            FileOutputStream(billFile).use { it.write(buildBillsCsv(viewModel.bills.value).toByteArray(Charsets.UTF_8)) }
+
+                            val uris = arrayListOf(
+                                FileProvider.getUriForFile(context, context.packageName + ".fileprovider", txFile),
+                                FileProvider.getUriForFile(context, context.packageName + ".fileprovider", billFile)
+                            )
+
+                            val sendIntent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                                type = "text/csv"
+                                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Bagikan data Keuanganku"))
+                            Toast.makeText(context, "Data berhasil disiapkan untuk dibagikan.", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Log.e("Export", "Gagal mengekspor data", e)
+                            Toast.makeText(context, "Gagal mengekspor: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Ekspor CSV & Bagikan", fontWeight = FontWeight.Bold)
                 }
             }
         }
