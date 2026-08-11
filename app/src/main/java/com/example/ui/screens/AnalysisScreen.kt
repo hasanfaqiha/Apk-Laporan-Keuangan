@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -47,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.FinanceViewModel
+import com.example.viewmodel.SummaryPeriod
 import com.example.viewmodel.formatRupiah
 
 @Composable
@@ -54,7 +56,8 @@ fun AnalysisScreen(
     viewModel: FinanceViewModel,
     modifier: Modifier = Modifier
 ) {
-    val summary by viewModel.financeSummary.collectAsState()
+    val summary by viewModel.analysisSummary.collectAsState()
+    val analysisPeriod by viewModel.analysisPeriod.collectAsState()
     val scrollState = rememberScrollState()
 
     var analysisType by remember { mutableStateOf("EXPENSE") } // EXPENSE or INCOME
@@ -76,8 +79,27 @@ fun AnalysisScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Black,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 16.dp)
+            modifier = Modifier.padding(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 8.dp)
         )
+
+        // Period Selector Chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            enumValues<SummaryPeriod>().forEach { period ->
+                FilterChip(
+                    selected = period == analysisPeriod,
+                    onClick = { viewModel.setAnalysisPeriod(period) },
+                    label = { Text(periodLabel(period), fontSize = 12.sp) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // General Info Cards (Income / Expense Side-by-Side)
         Row(
@@ -406,6 +428,13 @@ fun SavingsRateCard(
             }
         }
     }
+}
+
+private fun periodLabel(period: SummaryPeriod): String = when (period) {
+    SummaryPeriod.ALL -> "Semua"
+    SummaryPeriod.THIS_MONTH -> "Bulan Ini"
+    SummaryPeriod.LAST_MONTH -> "Bulan Lalu"
+    SummaryPeriod.THIS_YEAR -> "Tahun Ini"
 }
 
 // Simple quadruple container helper

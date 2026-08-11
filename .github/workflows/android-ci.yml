@@ -29,7 +29,7 @@ jobs:
         cache: gradle
 
     - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@v4
       with:
         cache-disabled: true # Disable cache to prevent corruption errors
 
@@ -37,18 +37,19 @@ jobs:
       env:
         GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
       run: |
-        if [ ! -z "$GOOGLE_SERVICES_JSON" ]; then
+        if [ -f "app/google-services.json" ]; then
+          echo "google-services.json already present in repository; keeping it."
+        elif [ ! -z "$GOOGLE_SERVICES_JSON" ]; then
           echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
-          echo "✅ google-services.json created from secrets"
+          echo "google-services.json created from secrets"
         else
-          echo "⚠️ No GOOGLE_SERVICES_JSON secret found. Creating dummy file to allow build."
-          # Create a minimal dummy file just to pass compilation if specific features aren't used in debug build
+          echo "No google-services.json and no secret found. Creating dummy file to allow build."
           mkdir -p app
-          echo '{"project_info": {"project_number": "dummy"}, "client": [{"client_info": {"mobilesdk_app_id": "dummy"}}]}' > app/google-services.json
+          echo '{"project_info": {"project_number": "dummy", "project_id": "dummy"}, "client": [{"client_info": {"mobilesdk_app_id": "dummy:android:000000000000", "project_number": "000000000000"}, "oauth_client": [], "api_key": [{"current_key": "dummy"}], "services": {}}]}' > app/google-services.json
         fi
 
     - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
 
     - name: Upload Debug APK to Artifacts
       uses: actions/upload-artifact@v4
@@ -75,7 +76,7 @@ jobs:
     - name: Get Version Name
       id: version
       run: |
-        VERSION_NAME=$(grep -oP "versionName\s+'\K[^']+" app/build.gradle.kts || echo "1.0.0")
+        VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts || grep -oP "versionName\s+'\K[^']+" app/build.gradle.kts || echo "1.0")
         echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
         echo "Generated Version: $VERSION_NAME"
 

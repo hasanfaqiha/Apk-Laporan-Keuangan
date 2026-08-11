@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -54,6 +56,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +79,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.data.Bill
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.formatRupiah
+import com.example.viewmodel.parseAmount
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +92,8 @@ fun BillsScreen(
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showPayDialog by remember { mutableStateOf<Bill?>(null) }
+    var editingBill by remember { mutableStateOf<Bill?>(null) }
+    var pendingDeleteBill by remember { mutableStateOf<Bill?>(null) }
 
     val unpaidBills = allBills.filter { !it.isPaid }.sortedBy { it.dueDateMillis }
     val paidBills = allBills.filter { it.isPaid }.sortedByDescending { it.dueDateMillis }
@@ -161,7 +167,7 @@ fun BillsScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Remind",
+                        text = "Ingatkan",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -226,7 +232,11 @@ fun BillsScreen(
                         BillListItem(
                             bill = bill,
                             onPayClick = { showPayDialog = bill },
-                            onDelete = { viewModel.deleteBill(bill.id) }
+                            onEdit = {
+                                editingBill = bill
+                                showAddDialog = true
+                            },
+                            onDelete = { pendingDeleteBill = bill }
                         )
                     }
                 }
@@ -268,7 +278,11 @@ fun BillsScreen(
                         BillListItem(
                             bill = bill,
                             onPayClick = { viewModel.toggleBillPaid(bill, context) },
-                            onDelete = { viewModel.deleteBill(bill.id) }
+                            onEdit = {
+                                editingBill = bill
+                                showAddDialog = true
+                            },
+                            onDelete = { pendingDeleteBill = bill }
                         )
                     }
                 }
@@ -309,10 +323,58 @@ fun BillsScreen(
     // Create Add Bill Dialog
     if (showAddDialog) {
         AddBillDialog(
-            onDismiss = { showAddDialog = false },
-            onSave = { title, amount, dueDateMs, category, note ->
-                viewModel.addBill(title, amount, dueDateMs, category, note, context)
+            initialBill = editingBill,
+            onDismiss = {
                 showAddDialog = false
+                editingBill = null
+            },
+            onSave = { title, amount, dueDateMs, category, note ->
+                val existing = editingBill
+                if (existing != null) {
+                    viewModel.updateBill(
+                        existing.copy(
+                            title = title,
+                            amount = amount,
+                            dueDateMillis = dueDateMs,
+                            category = category,
+                            note = note
+                        )
+                    )
+                } else {
+                    viewModel.addBill(title, amount, dueDateMs, category, note, context)
+                }
+                showAddDialog = false
+                editingBill = null
+            }
+        )
+    }
+
+    // Delete Confirmation Dialog
+    pendingDeleteBill?.let { bill ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteBill = null },
+            title = { Text("Hapus Jadwal Tagihan", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Yakin ingin menghapus jadwal tagihan '${bill.title}' sebesar " +
+                        "${formatRupiah(bill.amount)}? Tindakan ini tidak dapat dibatalkan."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteBill(bill.id)
+                        pendingDeleteBill = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteBill = null }) {
+                    Text("Batal")
+                }
             }
         )
     }
@@ -322,6 +384,7 @@ fun BillsScreen(
 fun BillListItem(
     bill: Bill,
     onPayClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -443,34 +506,48 @@ fun BillListItem(
                         onClick = onPayClick,
                         shape = RoundedCornerShape(8.dp),
                         color = if (bill.isPaid) Color(0xFFD1FAE5) else MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.height(28.dp).testTag("bill_pay_toggle")
+                        modifier = Modifier.height(40.dp).testTag("bill_pay_toggle")
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 10.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp)
                         ) {
                             Text(
-                                text = if (bill.isPaid) "Lunas ✓" else "Bayar",
-                                style = MaterialTheme.typography.labelSmall,
+                                text = if (bill.isPaid) "Lunas" else "Bayar",
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (bill.isPaid) Color(0xFF10B981) else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("edit_bill_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Ubah Jadwal",
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
 
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(40.dp)
                             .testTag("delete_bill_button")
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Hapus Jadwal",
                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -619,17 +696,27 @@ fun PayBillConfirmDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddBillDialog(
+    initialBill: Bill? = null,
     onDismiss: () -> Unit,
     onSave: (title: String, amount: Double, dueDateMs: Long, category: String, note: String) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var amountStr by remember { mutableStateOf("") }
-    var dueDateMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    var note by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(initialBill?.title ?: "") }
+    var amountStr by remember {
+        mutableStateOf(
+            initialBill?.let { if (it.amount % 1.0 == 0.0) it.amount.toLong().toString() else it.amount.toString() } ?: ""
+        )
+    }
+    var dueDateMs by remember { mutableStateOf(initialBill?.dueDateMillis ?: System.currentTimeMillis()) }
+    var note by remember { mutableStateOf(initialBill?.note ?: "") }
 
     val categories = listOf("Listrik", "Air", "Internet", "Sewa", "Lain-lain")
-    var selectedCategory by remember { mutableStateOf(categories.first()) }
+    var selectedCategory by remember {
+        mutableStateOf(
+            initialBill?.category?.takeIf { it.isNotBlank() } ?: categories.first()
+        )
+    }
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
+    val allCategories = if (selectedCategory in categories) categories else listOf(selectedCategory) + categories
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -656,7 +743,7 @@ fun AddBillDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tambah Jadwal Tagihan",
+                        text = if (initialBill != null) "Ubah Jadwal Tagihan" else "Tambah Jadwal Tagihan",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -721,7 +808,7 @@ fun AddBillDialog(
                         expanded = isCategoryDropdownExpanded,
                         onDismissRequest = { isCategoryDropdownExpanded = false }
                     ) {
-                        categories.forEach { selectionOption ->
+                        allCategories.forEach { selectionOption ->
                             DropdownMenuItem(
                                 text = { Text(text = selectionOption) },
                                 onClick = {
@@ -770,13 +857,13 @@ fun AddBillDialog(
 
                     Button(
                         onClick = {
-                            val amount = amountStr.toDoubleOrNull() ?: 0.0
+                            val amount = parseAmount(amountStr)
                             if (title.isNotBlank() && amount > 0) {
                                 onSave(title, amount, dueDateMs, selectedCategory, note)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        enabled = title.isNotBlank() && (amountStr.toDoubleOrNull() ?: 0.0) > 0.0,
+                        enabled = title.isNotBlank() && parseAmount(amountStr) > 0.0,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1.2f)

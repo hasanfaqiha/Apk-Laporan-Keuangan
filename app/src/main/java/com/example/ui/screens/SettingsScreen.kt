@@ -1118,7 +1118,7 @@ fun CloudLogMonitorSection(
                         ),
                         modifier = Modifier.testTag("clear_logs_button")
                     ) {
-                        Text("Clear", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Hapus Log", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

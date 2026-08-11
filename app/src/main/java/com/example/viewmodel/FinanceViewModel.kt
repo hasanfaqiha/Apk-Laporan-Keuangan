@@ -14,6 +14,7 @@ import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
 import com.example.data.Transaction
 import com.example.data.FirebaseSyncManager
+import com.example.data.computeCreditCardBills
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -108,86 +109,28 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     // Computed balances and totals
     val financeSummary: StateFlow<FinanceSummary> = combine(transactions, bills) { transList, billList ->
-        var cashIncome = 0.0
-        var cashExpense = 0.0
-        var bankIncome = 0.0
-        var bankExpense = 0.0
-        var creditCardDebt = 0.0
-        var totalIncome = 0.0
-        var totalExpense = 0.0
-
-        val categoryExpMap = mutableMapOf<String, Double>()
-        val categoryIncMap = mutableMapOf<String, Double>()
-
-        val currentCalendar = Calendar.getInstance()
-        val currentYear = currentCalendar.get(Calendar.YEAR)
-        val currentMonth = currentCalendar.get(Calendar.MONTH)
-        val calendar = Calendar.getInstance()
-
-        for (t in transList) {
-            val amt = t.amount
-            if (t.type == "INCOME") {
-                if (t.accountType == "CASH") {
-                    cashIncome += amt
-                } else if (t.accountType == "BANK") {
-                    bankIncome += amt
-                }
-                categoryIncMap[t.category] = (categoryIncMap[t.category] ?: 0.0) + amt
-                totalIncome += amt
-            } else if (t.type == "EXPENSE") {
-                if (t.accountType == "CASH") {
-                    cashExpense += amt
-                } else if (t.accountType == "BANK") {
-                    bankExpense += amt
-                } else if (t.accountType == "CREDIT_CARD") {
-                    calendar.timeInMillis = t.dateMillis
-                    if (calendar.get(Calendar.YEAR) == currentYear && calendar.get(Calendar.MONTH) == currentMonth) {
-                        creditCardDebt += amt
-                    }
-                }
-                categoryExpMap[t.category] = (categoryExpMap[t.category] ?: 0.0) + amt
-                totalExpense += amt
-            } else if (t.type == "WITHDRAWAL") {
-                // Tarik tunai: mengurangi saldo bank, menambah saldo cash
-                bankExpense += amt
-                cashIncome += amt
-            } else if (t.type == "DEPOSIT") {
-                // Setor tunai: mengurangi saldo cash, menambah saldo bank
-                cashExpense += amt
-                bankIncome += amt
-            }
-        }
-
-        val cashOnHand = cashIncome - cashExpense
-        val bankBalance = bankIncome - bankExpense
-        val totalBalance = cashOnHand + bankBalance
-
-        // Add credit card debt to total expenses
-        totalExpense += creditCardDebt
-
-        // Upcoming unpaid bills due in next 3 days
-        val now = System.currentTimeMillis()
-        val threeDaysInMs = 3 * 24 * 60 * 60 * 1000L
-        val upcomingBillsCount = billList.count { !it.isPaid && (it.dueDateMillis - now in 0..threeDaysInMs) }
-        val overdueBillsCount = billList.count { !it.isPaid && (it.dueDateMillis < now) }
-
-        FinanceSummary(
-            cashOnHand = cashOnHand,
-            bankBalance = bankBalance,
-            totalBalance = totalBalance,
-            totalIncome = totalIncome,
-            totalExpense = totalExpense,
-            categoryExpenses = categoryExpMap,
-            categoryIncomes = categoryIncMap,
-            upcomingBillsCount = upcomingBillsCount,
-            overdueBillsCount = overdueBillsCount,
-            creditCardDebt = creditCardDebt
-        )
+        computeFinanceSummary(transList, billList)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = FinanceSummary()
     )
+
+    // Analysis period selector (used by the Analysis screen)
+    val analysisPeriod = MutableStateFlow(SummaryPeriod.ALL)
+
+    // Period-aware summary for the Analysis screen
+    val analysisSummary: StateFlow<FinanceSummary> = combine(transactions, bills, analysisPeriod) { transList, billList, period ->
+        computeFinanceSummary(filterTransactionsByPeriod(transList, period), billList)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = FinanceSummary()
+    )
+
+    fun setAnalysisPeriod(period: SummaryPeriod) {
+        analysisPeriod.value = period
+    }
 
     // Transaction Actions
     fun addTransaction(title: String, amount: Double, type: String, accountType: String, category: String, dateMillis: Long, note: String) {
@@ -214,6 +157,15 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             repository.deleteTransactionById(id)
             if (syncManager.isLoggedIn) {
                 syncManager.deleteTransactionFromCloud(id)
+            }
+        }
+    }
+
+    fun updateTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            repository.updateTransaction(transaction)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncTransactionToCloud(transaction)
             }
         }
     }
@@ -253,6 +205,15 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             repository.deleteBillById(id)
             if (syncManager.isLoggedIn) {
                 syncManager.deleteBillFromCloud(id)
+            }
+        }
+    }
+
+    fun updateBill(bill: Bill) {
+        viewModelScope.launch {
+            repository.updateBill(bill)
+            if (syncManager.isLoggedIn) {
+                syncManager.syncBillToCloud(bill)
             }
         }
     }
@@ -317,67 +278,11 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             try {
                 val transList = repository.allTransactions.first()
                 val billList = repository.allBills.first()
-                
-                val ccExpenses = transList.filter { t ->
-                    t.type == "EXPENSE" && t.accountType == "CREDIT_CARD"
-                }
-                if (ccExpenses.isEmpty()) return@launch
-
-                val calendar = Calendar.getInstance()
-                val grouped = ccExpenses.groupBy { t ->
-                    calendar.timeInMillis = t.dateMillis
-                    val year = calendar.get(Calendar.YEAR)
-                    val month = calendar.get(Calendar.MONTH) // 0-indexed
-                    Pair(year, month)
-                }
-
-                val currentCalendar = Calendar.getInstance()
-                val currentYear = currentCalendar.get(Calendar.YEAR)
-                val currentMonth = currentCalendar.get(Calendar.MONTH)
-
-                val monthNames = arrayOf(
-                    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-                    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-                )
-
-                for ((yearMonth, transactionsInMonth) in grouped) {
-                    val (year, month) = yearMonth
-                    
-                    // Check if we are at least in the next month
-                    val isPastMonth = (currentYear > year) || (currentYear == year && currentMonth > month)
-                    if (!isPastMonth) continue
-
-                    val monthName = monthNames[month]
-                    val billTitle = "Tagihan Kartu Kredit - $monthName $year"
-
-                    // Check if this bill already exists
-                    val alreadyExists = billList.any { b -> b.title == billTitle }
-                    if (!alreadyExists) {
-                        val totalAmount = transactionsInMonth.sumOf { it.amount }
-                        if (totalAmount > 0) {
-                            val dueCal = Calendar.getInstance()
-                            dueCal.set(Calendar.YEAR, year)
-                            dueCal.set(Calendar.MONTH, month)
-                            dueCal.add(Calendar.MONTH, 1) // Add 1 month to get next month
-                            dueCal.set(Calendar.DAY_OF_MONTH, 10) // Set due date to 10th
-                            dueCal.set(Calendar.HOUR_OF_DAY, 12)
-                            dueCal.set(Calendar.MINUTE, 0)
-                            dueCal.set(Calendar.SECOND, 0)
-
-                            val bill = Bill(
-                                id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
-                                title = billTitle,
-                                amount = totalAmount,
-                                dueDateMillis = dueCal.timeInMillis,
-                                isPaid = false,
-                                category = "Sewa & Tagihan",
-                                note = "Akumulasi belanja Kartu Kredit selama bulan $monthName $year"
-                            )
-                            repository.insertBill(bill)
-                            if (syncManager.isLoggedIn) {
-                                syncManager.syncBillToCloud(bill)
-                            }
-                        }
+                val newBills = computeCreditCardBills(transList, billList)
+                newBills.forEach { bill ->
+                    repository.insertBill(bill)
+                    if (syncManager.isLoggedIn) {
+                        syncManager.syncBillToCloud(bill)
                     }
                 }
             } catch (e: Exception) {
@@ -433,6 +338,156 @@ data class FinanceSummary(
     val overdueBillsCount: Int = 0,
     val creditCardDebt: Double = 0.0
 )
+
+enum class SummaryPeriod {
+    ALL, THIS_MONTH, LAST_MONTH, THIS_YEAR
+}
+
+private fun filterTransactionsByPeriod(transactions: List<Transaction>, period: SummaryPeriod): List<Transaction> {
+    return when (period) {
+        SummaryPeriod.ALL -> transactions
+        SummaryPeriod.THIS_MONTH -> {
+            val start = Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            transactions.filter { it.dateMillis >= start }
+        }
+        SummaryPeriod.LAST_MONTH -> {
+            val cal = Calendar.getInstance().apply {
+                add(Calendar.MONTH, -1)
+                set(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val start = cal.timeInMillis
+            cal.add(Calendar.MONTH, 1)
+            val end = cal.timeInMillis
+            transactions.filter { it.dateMillis >= start && it.dateMillis < end }
+        }
+        SummaryPeriod.THIS_YEAR -> {
+            val start = Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_YEAR, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            transactions.filter { it.dateMillis >= start }
+        }
+    }
+}
+
+private fun computeFinanceSummary(transList: List<Transaction>, billList: List<Bill>): FinanceSummary {
+    var cashIncome = 0.0
+    var cashExpense = 0.0
+    var bankIncome = 0.0
+    var bankExpense = 0.0
+    var creditCardDebt = 0.0
+    var totalIncome = 0.0
+    var totalExpense = 0.0
+
+    val categoryExpMap = mutableMapOf<String, Double>()
+    val categoryIncMap = mutableMapOf<String, Double>()
+
+    val currentCalendar = Calendar.getInstance()
+    val currentYear = currentCalendar.get(Calendar.YEAR)
+    val currentMonth = currentCalendar.get(Calendar.MONTH)
+    val calendar = Calendar.getInstance()
+
+    for (t in transList) {
+        val amt = t.amount
+        if (t.type == "INCOME") {
+            if (t.accountType == "CASH") {
+                cashIncome += amt
+            } else if (t.accountType == "BANK") {
+                bankIncome += amt
+            }
+            categoryIncMap[t.category] = (categoryIncMap[t.category] ?: 0.0) + amt
+            totalIncome += amt
+        } else if (t.type == "EXPENSE") {
+            if (t.accountType == "CASH") {
+                cashExpense += amt
+            } else if (t.accountType == "BANK") {
+                bankExpense += amt
+            } else if (t.accountType == "CREDIT_CARD") {
+                calendar.timeInMillis = t.dateMillis
+                if (calendar.get(Calendar.YEAR) == currentYear && calendar.get(Calendar.MONTH) == currentMonth) {
+                    creditCardDebt += amt
+                }
+            }
+            categoryExpMap[t.category] = (categoryExpMap[t.category] ?: 0.0) + amt
+            totalExpense += amt
+        } else if (t.type == "WITHDRAWAL") {
+            // Tarik tunai: mengurangi saldo bank, menambah saldo cash
+            bankExpense += amt
+            cashIncome += amt
+        } else if (t.type == "DEPOSIT") {
+            // Setor tunai: mengurangi saldo cash, menambah saldo bank
+            cashExpense += amt
+            bankIncome += amt
+        }
+    }
+
+    val cashOnHand = cashIncome - cashExpense
+    val bankBalance = bankIncome - bankExpense
+    val totalBalance = cashOnHand + bankBalance
+
+    // Add credit card debt to total expenses
+    totalExpense += creditCardDebt
+
+    // Upcoming unpaid bills due in next 3 days
+    val now = System.currentTimeMillis()
+    val threeDaysInMs = 3 * 24 * 60 * 60 * 1000L
+    val upcomingBillsCount = billList.count { !it.isPaid && (it.dueDateMillis - now in 0..threeDaysInMs) }
+    val overdueBillsCount = billList.count { !it.isPaid && (it.dueDateMillis < now) }
+
+    return FinanceSummary(
+        cashOnHand = cashOnHand,
+        bankBalance = bankBalance,
+        totalBalance = totalBalance,
+        totalIncome = totalIncome,
+        totalExpense = totalExpense,
+        categoryExpenses = categoryExpMap,
+        categoryIncomes = categoryIncMap,
+        upcomingBillsCount = upcomingBillsCount,
+        overdueBillsCount = overdueBillsCount,
+        creditCardDebt = creditCardDebt
+    )
+}
+
+// Helper to parse user-entered amounts that may use Indonesian thousand/decimal
+// separators (e.g. "1.500", "25.000,50", "12,5"). Ambiguous bare dots with
+// exactly 3 trailing digits are treated as thousand separators.
+fun parseAmount(input: String): Double {
+    var s = input.trim().replace("Rp", "").replace("rp", "").replace(" ", "")
+    if (s.isEmpty()) return 0.0
+
+    val lastComma = s.lastIndexOf(',')
+    val lastDot = s.lastIndexOf('.')
+    when {
+        lastComma >= 0 && lastDot >= 0 -> {
+            if (lastComma > lastDot) {
+                s = s.replace(".", "").replace(",", ".")
+            } else {
+                s = s.replace(",", "")
+            }
+        }
+        lastComma >= 0 -> s = s.replace(",", ".")
+        lastDot >= 0 -> {
+            val digitsAfterDot = s.substring(lastDot + 1)
+            if (digitsAfterDot.length == 3) {
+                s = s.replace(".", "")
+            }
+        }
+    }
+    return s.toDoubleOrNull() ?: 0.0
+}
 
 // Helper to format currency to Indonesian Rupiah
 fun formatRupiah(amount: Double): String {

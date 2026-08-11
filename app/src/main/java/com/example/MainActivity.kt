@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
+import com.example.data.scheduleBillReminderWork
 import com.example.ui.screens.AnalysisScreen
 import com.example.ui.screens.BillsScreen
 import com.example.ui.screens.DashboardScreen
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        scheduleBillReminderWork(applicationContext)
         setContent {
             val context = LocalContext.current
             

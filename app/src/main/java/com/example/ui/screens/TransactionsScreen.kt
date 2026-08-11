@@ -45,6 +45,8 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -63,6 +65,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import com.example.data.Category
 import androidx.compose.runtime.Composable
@@ -87,6 +90,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.data.Transaction
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.formatRupiah
+import com.example.viewmodel.parseAmount
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +109,9 @@ fun TransactionsScreen(
     var selectedAccountFilter by remember { mutableStateOf("ALL") } // ALL, CASH, BANK
     var showAddDialog by remember { mutableStateOf(showAddFormInitially) }
     var addDialogType by remember { mutableStateOf(initialType) }
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var viewingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var pendingDeleteTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // Filtered transaction list
     val filteredTransactions = allTransactions.filter { t ->
@@ -284,7 +291,13 @@ fun TransactionsScreen(
                     items(filteredTransactions, key = { it.id }) { trans ->
                         TransactionRowItem(
                             transaction = trans,
-                            onDelete = { viewModel.deleteTransaction(trans.id) }
+                            onViewDetail = { viewingTransaction = trans },
+                            onEdit = {
+                                editingTransaction = trans
+                                addDialogType = trans.type
+                                showAddDialog = true
+                            },
+                            onDelete = { pendingDeleteTransaction = trans }
                         )
                     }
                 }
@@ -297,14 +310,80 @@ fun TransactionsScreen(
         AddTransactionDialog(
             type = addDialogType,
             categoriesList = categoriesList,
+            initialTransaction = editingTransaction,
             onDismiss = {
                 showAddDialog = false
+                editingTransaction = null
                 onFormDismissed()
             },
             onSave = { title, amt, tType, accType, cat, dateMs, note ->
-                viewModel.addTransaction(title, amt, tType, accType, cat, dateMs, note)
+                val existing = editingTransaction
+                if (existing != null) {
+                    viewModel.updateTransaction(
+                        existing.copy(
+                            title = title,
+                            amount = amt,
+                            type = tType,
+                            accountType = accType,
+                            category = cat,
+                            dateMillis = dateMs,
+                            note = note
+                        )
+                    )
+                } else {
+                    viewModel.addTransaction(title, amt, tType, accType, cat, dateMs, note)
+                }
                 showAddDialog = false
+                editingTransaction = null
                 onFormDismissed()
+            }
+        )
+    }
+
+    // Transaction Detail Dialog
+    viewingTransaction?.let { trans ->
+        TransactionDetailDialog(
+            transaction = trans,
+            onDismiss = { viewingTransaction = null },
+            onEdit = {
+                viewingTransaction = null
+                editingTransaction = trans
+                addDialogType = trans.type
+                showAddDialog = true
+            },
+            onDelete = {
+                viewingTransaction = null
+                pendingDeleteTransaction = trans
+            }
+        )
+    }
+
+    // Delete Confirmation Dialog
+    pendingDeleteTransaction?.let { trans ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteTransaction = null },
+            title = { Text("Hapus Transaksi", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Yakin ingin menghapus transaksi '${trans.title}' sebesar " +
+                        "${formatRupiah(trans.amount)}? Tindakan ini tidak dapat dibatalkan."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteTransaction(trans.id)
+                        pendingDeleteTransaction = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus", color = MaterialTheme.colorScheme.onError)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteTransaction = null }) {
+                    Text("Batal")
+                }
             }
         )
     }
@@ -398,6 +477,8 @@ fun AccountFilterChip(
 @Composable
 fun TransactionRowItem(
     transaction: Transaction,
+    onViewDetail: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -422,7 +503,8 @@ fun TransactionRowItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable { onViewDetail() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -530,11 +612,24 @@ fun TransactionRowItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .testTag("edit_transaction_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Ubah Transaksi",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(40.dp)
                         .testTag("delete_transaction_button")
                 ) {
                     Icon(
@@ -549,20 +644,121 @@ fun TransactionRowItem(
     }
 }
 
+@Composable
+fun TransactionDetailDialog(
+    transaction: Transaction,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Detail Transaksi", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Judul", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(transaction.title, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+                }
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Jumlah", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val sign = when (transaction.type) {
+                        "WITHDRAWAL", "DEPOSIT" -> "⇄ "
+                        "EXPENSE" -> "-"
+                        else -> "+"
+                    }
+                    val amountColor = when (transaction.type) {
+                        "WITHDRAWAL" -> MaterialTheme.colorScheme.primary
+                        "DEPOSIT" -> MaterialTheme.colorScheme.secondary
+                        "EXPENSE" -> MaterialTheme.colorScheme.error
+                        else -> Color(0xFF10B981)
+                    }
+                    Text(
+                        text = "$sign${formatRupiah(transaction.amount)}",
+                        fontWeight = FontWeight.Bold,
+                        color = amountColor,
+                        textAlign = TextAlign.End
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Tanggal", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatDate(transaction.dateMillis), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+                }
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Tipe", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = when (transaction.type) {
+                            "INCOME" -> "Pemasukan"
+                            "EXPENSE" -> "Pengeluaran"
+                            "WITHDRAWAL" -> "Tarik Tunai"
+                            "DEPOSIT" -> "Setor Tunai"
+                            else -> transaction.type
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.End
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Akun", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = when (transaction.accountType) {
+                            "BANK" -> "Bank"
+                            "CREDIT_CARD" -> "Kartu Kredit"
+                            else -> "Tunai"
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.End
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text("Kategori", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(transaction.category, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+                }
+                if (transaction.note.isNotBlank()) {
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Catatan", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(transaction.note, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onEdit,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Ubah", color = MaterialTheme.colorScheme.onPrimary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDelete) {
+                Text("Hapus", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionDialog(
     type: String, // INCOME or EXPENSE
     categoriesList: List<Category>,
+    initialTransaction: Transaction? = null,
     onDismiss: () -> Unit,
     onSave: (title: String, amount: Double, type: String, accountType: String, category: String, dateMillis: Long, note: String) -> Unit
 ) {
-    var title by remember { mutableStateOf("") }
-    var amountStr by remember { mutableStateOf("") }
-    var transactionType by remember { mutableStateOf(type) } // INCOME, EXPENSE
-    var accountType by remember { mutableStateOf("CASH") } // CASH, BANK
-    var dateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
-    var note by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf(initialTransaction?.title ?: "") }
+    var amountStr by remember {
+        mutableStateOf(
+            initialTransaction?.let { if (it.amount % 1.0 == 0.0) it.amount.toLong().toString() else it.amount.toString() } ?: ""
+        )
+    }
+    var transactionType by remember { mutableStateOf(initialTransaction?.type ?: type) } // INCOME, EXPENSE
+    var accountType by remember { mutableStateOf(initialTransaction?.accountType ?: "CASH") } // CASH, BANK
+    var dateMillis by remember { mutableStateOf(initialTransaction?.dateMillis ?: System.currentTimeMillis()) }
+    var note by remember { mutableStateOf(initialTransaction?.note ?: "") }
 
     val expenseCategories = categoriesList.filter { it.type == "EXPENSE" }.map { it.name }
         .ifEmpty { listOf("Makanan & Minuman", "Transportasi", "Sewa & Tagihan", "Belanja", "Hiburan", "Lain-lain") }
@@ -570,7 +766,7 @@ fun AddTransactionDialog(
         .ifEmpty { listOf("Gaji", "Investasi", "Bonus", "Hadiah", "Lain-lain") }
     val categories = if (transactionType == "EXPENSE") expenseCategories else incomeCategories
 
-    var selectedCategory by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(initialTransaction?.category ?: "") }
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
 
     // Synchronize category selection when type changes
@@ -611,7 +807,7 @@ fun AddTransactionDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tambah Transaksi",
+                        text = if (initialTransaction != null) "Ubah Transaksi" else "Tambah Transaksi",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1053,7 +1249,7 @@ fun AddTransactionDialog(
 
                     Button(
                         onClick = {
-                            val amount = amountStr.toDoubleOrNull() ?: 0.0
+                            val amount = parseAmount(amountStr)
                             if (title.isNotBlank() && amount > 0) {
                                 val resolvedAccountType = when (transactionType) {
                                     "WITHDRAWAL" -> "BANK"
@@ -1077,7 +1273,7 @@ fun AddTransactionDialog(
                             },
                             contentColor = Color.White
                         ),
-                        enabled = title.isNotBlank() && (amountStr.toDoubleOrNull() ?: 0.0) > 0.0,
+                        enabled = title.isNotBlank() && parseAmount(amountStr) > 0.0,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1.2f)

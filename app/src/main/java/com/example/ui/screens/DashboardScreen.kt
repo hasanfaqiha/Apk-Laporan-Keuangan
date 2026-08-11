@@ -540,154 +540,19 @@ fun HeroHeaderSection(
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Kartu Utama •••• 2050",
+                        text = "Ringkasan Keuangan",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Box(
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "Aktif",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CircularActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .background(
-                    color = if (isDark) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    shape = CircleShape
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun JointWalletCard(
-    title: String,
-    balance: Double,
-    membersCount: Int,
-    modifier: Modifier = Modifier
-) {
-    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f) else Color(0xFFF1F5F9)
-        ),
-        modifier = modifier.width(180.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy((-8).dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(membersCount.coerceAtMost(3)) { index ->
-                    val color = when(index) {
-                        0 -> Color(0xFF3B82F6)
-                        1 -> Color(0xFF10B981)
-                        else -> Color(0xFFEC4899)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(1.dp, Color.White, CircleShape)
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-                if (membersCount > 3) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF475569))
-                            .border(1.dp, Color.White, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("+${membersCount - 3}", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Balance",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = formatRupiah(balance),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
         }
     }
