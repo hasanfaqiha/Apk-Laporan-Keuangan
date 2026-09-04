@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+   KeuanganKu data extraction rules (Android 12+).
+   The local Room database and preferences stay out of Google cloud backup:
+   finance data only leaves the device through the user's own Firebase sync.
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="finance_database" />
+        <exclude domain="sharedpref" path="finance_prefs.xml" />
     </cloud-backup>
     <!--
     <device-transfer>

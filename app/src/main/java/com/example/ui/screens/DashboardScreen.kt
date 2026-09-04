@@ -811,7 +811,6 @@ fun TransactionListItem(
     modifier: Modifier = Modifier
 ) {
     val isExpense = transaction.type == "EXPENSE"
-    val isBank = transaction.accountType == "BANK"
 
     val categoryColor = when (transaction.category) {
         "Makanan & Minuman" -> Color(0xFFF57C00)
@@ -880,7 +879,15 @@ fun TransactionListItem(
                         style = MaterialTheme.typography.labelSmall
                     )
                     Text(
-                        text = if (isBank) "Bank" else "Cash",
+                        text = when (transaction.type) {
+                            "WITHDRAWAL" -> "Bank ➔ Cash"
+                            "DEPOSIT" -> "Cash ➔ Bank"
+                            else -> when (transaction.accountType) {
+                                "CREDIT_CARD" -> "Kartu Kredit"
+                                "BANK" -> "Bank"
+                                else -> "Tunai"
+                            }
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

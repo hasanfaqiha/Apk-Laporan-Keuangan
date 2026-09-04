@@ -371,9 +371,27 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                     .set(docData, SetOptions.merge())
                             }
                         } else {
-                            // Was deleted in cloud on another device, delete locally
-                            repository.deleteTransactionById(t.id)
-                            addLog("DELETE", "SUCCESS", "Menghapus transaksi lokal '${t.title}' (dihapus dari cloud).")
+                            // Not present in cloud: this entry was created while signed out
+                            // (or a previous upload failed), so upload it instead of
+                            // deleting the user's local data. Cross-device deletions are
+                            // still propagated by the realtime listener (REMOVED events).
+                            val docData = hashMapOf(
+                                "id" to t.id,
+                                "title" to t.title,
+                                "amount" to t.amount,
+                                "type" to t.type,
+                                "accountType" to t.accountType,
+                                "category" to t.category,
+                                "dateMillis" to t.dateMillis,
+                                "note" to t.note
+                            )
+                            runWithRetry {
+                                db.collection("users").document(uid)
+                                    .collection("transactions").document(t.id.toString())
+                                    .set(docData, SetOptions.merge())
+                            }
+                            keepLocalTransIds.add(t.id)
+                            addLog("UPLOAD", "SUCCESS", "Mengunggah transaksi offline '${t.title}' ke cloud.")
                         }
                     }
                 }
@@ -461,9 +479,26 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                     .set(docData, SetOptions.merge())
                             }
                         } else {
-                            // Was deleted on another device, delete locally
-                            repository.deleteBillById(b.id)
-                            addLog("DELETE", "SUCCESS", "Menghapus tagihan lokal '${b.title}' (dihapus dari cloud).")
+                            // Not present in cloud: this entry was created while signed out
+                            // (or a previous upload failed), so upload it instead of
+                            // deleting the user's local data. Cross-device deletions are
+                            // still propagated by the realtime listener (REMOVED events).
+                            val docData = hashMapOf(
+                                "id" to b.id,
+                                "title" to b.title,
+                                "amount" to b.amount,
+                                "dueDateMillis" to b.dueDateMillis,
+                                "isPaid" to b.isPaid,
+                                "category" to b.category,
+                                "note" to b.note
+                            )
+                            runWithRetry {
+                                db.collection("users").document(uid)
+                                    .collection("bills").document(b.id.toString())
+                                    .set(docData, SetOptions.merge())
+                            }
+                            keepLocalBillIds.add(b.id)
+                            addLog("UPLOAD", "SUCCESS", "Mengunggah tagihan offline '${b.title}' ke cloud.")
                         }
                     }
                 }

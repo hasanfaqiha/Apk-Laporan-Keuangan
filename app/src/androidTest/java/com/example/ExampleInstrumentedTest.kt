@@ -2,9 +2,10 @@ package com.example
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.example.BuildConfig
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -17,6 +18,7 @@ class ExampleInstrumentedTest {
   fun useAppContext() {
     // Context of the app under test.
     val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-    assertEquals("com.example", appContext.packageName)
+    // The real applicationId differs from the source namespace (com.example).
+    assertEquals(BuildConfig.APPLICATION_ID, appContext.packageName)
   }
 }

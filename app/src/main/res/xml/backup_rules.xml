@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   KeuanganKu backup rules (devices older than API 31).
+   Financial data is sensitive: it is synced through Firebase when the user opts
+   into an account, so we deliberately keep the local Room database and
+   preferences OUT of Google's automatic cloud backup.
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="finance_database" />
+    <exclude domain="sharedpref" path="finance_prefs.xml" />
 </full-backup-content>

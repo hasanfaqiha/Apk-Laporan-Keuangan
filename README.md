@@ -1,179 +1,117 @@
-# KeuanganKu - Modern Finance App with Clean Architecture
+# KeuanganKu — Aplikasi Laporan Keuangan Pribadi
 
-## 📱 Overview
-Aplikasi pencatatan keuangan pribadi dengan desain modern mirip MYBCA, dibangun menggunakan **Clean Architecture** dan teknologi Android terbaru.
+Aplikasi Android (Kotlin + Jetpack Compose) untuk mencatat pengeluaran harian, pemasukan, saldo tunai & bank, analisis statistik, dan pengingat tagihan — dengan tampilan bergaya *mobile banking* (inspirasi MYBCA), mode offline, dan sinkronisasi cloud opsional via Firebase.
 
-## ✨ Features
+## ✨ Fitur
 
-### Core Features
-- **Dashboard Enhanced**: Tampilan total saldo, cash, bank, e-wallet terpisah dengan visualisasi kartu kredit
-- **Transaction Management**: Catat pemasukan & pengeluaran dengan kategori lengkap
-- **Bill Reminders**: Notifikasi tagihan jatuh tempo & terlambat
-- **Analytics & Reports**: Grafik pengeluaran per kategori, tren bulanan, proyeksi
-- **Budget Tracking**: Set budget per kategori dengan alert jika melebihi
-- **Multi-Account Support**: Cash, Bank Account, E-Wallet, Credit Card, Investment
-
-### UI/UX (MYBCA-inspired)
-- **Modern Card Design**: Card-based layout dengan shadow & gradient
-- **Color Palette**: BCA blue-inspired (#4F46E5 primary) dengan dark/light theme
-- **Bottom Navigation**: 5 tab utama (Dashboard, Transaksi, Analisis, Tagihan, Settings)
-- **Smooth Animations**: Transisi halus antar screen
-- **Responsive Layout**: Support berbagai ukuran layar
-
-### Security & Sync
-- **Firebase Integration**: Sinkronisasi cloud aman untuk backup data
-- **Room Database**: Local persistence untuk offline-first experience
-- **App Check**: ReCAPTCHA protection untuk keamanan API
-- **Secure Authentication**: Firebase Auth dengan email/password
-
-## 🏗️ Architecture
-
-```
-app/src/main/java/com/example/
-├── domain/                      # Domain Layer (Business Logic)
-│   ├── model/                   # Entity classes
-│   │   ├── Transaction.kt
-│   │   ├── Category.kt
-│   │   ├── Bill.kt
-│   │   └── FinanceSummary.kt
-│   ├── repository/              # Repository interfaces
-│   │   └── FinanceRepository.kt
-│   └── usecase/                 # Use cases (optional)
-│
-├── data/                        # Data Layer
-│   ├── local/                   # Room Database
-│   │   ├── Entities.kt
-│   │   ├── FinanceDao.kt
-│   │   └── FinanceDatabase.kt
-│   ├── remote/                  # Firebase Services
-│   │   └── FirebaseService.kt
-│   └── repository_impl/         # Repository implementations
-│       └── FinanceRepositoryImpl.kt
-│
-├── presentation/                # Presentation Layer
-│   ├── ui/
-│   │   ├── screens/             # Compose Screens
-│   │   │   ├── DashboardScreen.kt
-│   │   │   ├── TransactionsScreen.kt
-│   │   │   ├── AnalysisScreen.kt
-│   │   │   ├── BillsScreen.kt
-│   │   │   └── SettingsScreen.kt
-│   │   ├── components/          # Reusable UI Components
-│   │   └── theme/               # Theme, Colors, Typography
-│   ├── viewmodel/               # ViewModels
-│   │   └── FinanceViewModel.kt
-│   └── navigation/              # Navigation Graph
-│
-└── MainActivity.kt              # Entry Point
-```
+- **Dasbor**: total saldo, saldo cash vs bank, kartu kredit, dan aktivitas terakhir
+- **Pencatatan transaksi**: pemasukan, pengeluaran, tarik/setor tunai, multi kategori, pencarian & filter (tipe/akun)
+- **Kartu kredit**: pelacakan akumulasi belanja bulan ini + pembuatan tagihan kartu kredit otomatis untuk bulan berjalan
+- **Jadwal tagihan**: pengingat jatuh tempo & terlambat lewat notifikasi (WorkManager harian), tandai lunas dengan pencatatan otomatis
+- **Analisis**: pengeluaran per kategori, tren bulanan, proyeksi, rasio tabungan + saran (periode: semua / bulan ini / bulan lalu / tahun ini)
+- **Mode offline penuh**: semua data tersimpan lokal di Room — tanpa akun pun aplikasi tetap berfungsi
+- **Sinkronisasi cloud opsional**: login email/password (Firebase Auth) → sinkron dua arah + realtime (Firestore)
+- **Ekspor CSV**: backup/portabilitas data transaksi & tagihan (RFC 4180)
+- **Tema**: light/dark/system, palet brand BCA, Material 3
 
 ## 🛠️ Tech Stack
 
-- **Language**: Kotlin
-- **UI Framework**: Jetpack Compose
-- **Architecture**: Clean Architecture + MVVM
-- **Local Database**: Room
-- **Cloud Backend**: Firebase (Firestore, Auth, App Check)
-- **Dependency Injection**: Manual (bisa upgrade ke Hilt/Koin)
-- **Async**: Kotlin Coroutines + Flow
-- **Navigation**: Compose Navigation
+| Bagian | Teknologi |
+|---|---|
+| Bahasa / UI | Kotlin, Jetpack Compose (Material 3) |
+| Penyimpanan lokal | Room (SQLite), offline-first |
+| Backend cloud | Firebase Auth + Cloud Firestore |
+| Notifikasi terjadwal | WorkManager (harian) |
+| Arsitektur | MVVM sederhana (Activity → ViewModel → Repository → Room) |
+| Testing | JUnit, Robolectric, Roborazzi |
 
-## 🚀 Getting Started
+## 📁 Struktur Kode
 
-### Prerequisites
-- Android Studio Hedgehog atau lebih baru
-- JDK 17+
-- Firebase project dengan:
-  - Firestore Database
-  - Authentication
-  - App Check (ReCAPTCHA)
-  - google-services.json di folder app/
+```
+app/src/main/java/com/example/
+├── MainActivity.kt                  # Entry point, bottom navigation, izin notifikasi
+├── data/                            # Room entities/DAO/database + repository
+│   ├── Transaction.kt / Bill.kt / Category.kt
+│   ├── FinanceDao.kt / FinanceDatabase.kt
+│   ├── FinanceRepository.kt         # + logika tagihan kartu kredit
+│   ├── FirebaseSyncManager.kt       # Sinkronisasi penuh + realtime ke Firestore
+│   └── BillReminderWorker.kt        # Notifikasi tagihan latar belakang
+├── viewmodel/
+│   └── FinanceViewModel.kt          # State UI + helper format Rupiah, CSV, parse angka
+└── ui/
+    ├── screens/                     # Dashboard, Transaksi, Analisis, Tagihan, Settings, Auth
+    └── theme/                       # Palet & tema BCA
+```
 
-### Setup Steps
+### Skema Database (Room, tabel `transactions`, `bills`, `categories`)
 
-1. **Clone Repository**
+| Field | Keterangan |
+|---|---|
+| `id` | `Int` primary key. Nilai < 1.000.000 = auto-increment lama; nilai acak 1.000.000–2.000.000.000 dipakai agar unik lintas perangkat untuk sinkron cloud |
+| `title`, `amount`, `note` | Data transaksi/tagihan |
+| `type` | `INCOME` / `EXPENSE` / `WITHDRAWAL` / `DEPOSIT` |
+| `accountType` | `CASH` / `BANK` / `CREDIT_CARD` |
+| `dateMillis` / `dueDateMillis` | Waktu transaksi / jatuh tempo tagihan |
+| `isPaid`, `category` | Status & kategori tagihan |
+
+## 🚀 Menjalankan di Lokal
+
+### Prasyarat
+- Android Studio (versi terbaru) atau JDK 17+
+- Firebase project (untuk fitur cloud):
+  - Firebase Auth (Email/Password) dan Cloud Firestore **diaktifkan**
+  - `app/google-services.json` milik project Anda (ganti yang ada, atau hapus untuk build tanpa Firebase)
+
+### Build & test
 ```bash
-git clone <repository-url>
-cd KeuanganKu
+./gradlew assembleDebug        # menghasilkan app/build/outputs/apk/debug/app-debug.apk
+./gradlew testDebugUnitTest    # menjalankan unit test (JVM/Robolectric)
+./gradlew installDebug         # install ke emulator/perangkat yang terhubung
 ```
 
-2. **Configure Firebase**
-- Download `google-services.json` dari Firebase Console
-- Place di `app/google-services.json`
-- Enable Authentication (Email/Password)
-- Enable Firestore Database
-- Setup App Check dengan ReCAPTCHA
+## 📲 Mendapatkan APK yang Bisa Diinstal (GitHub Actions)
 
-3. **Environment Variables**
-Create `.env` file di root project:
-```env
-FIREBASE_APP_CHECK_DEBUG_TOKEN=your_debug_token
-```
+Repositori ini sudah menyertakan workflow `.github/workflows/android-ci.yml`. Workflow tersebut otomatis menjalankan unit test, membangun APK, lalu mengunggahnya:
 
-4. **Build & Run**
-```bash
-./gradlew assembleDebug
-```
+1. Buka tab **Actions** di GitHub → pilih workflow **"Android CI - Build, Test & Release APK"** → **Run workflow**.
+2. Tunggu sampai job selesai, lalu buka run tersebut.
+3. Unduh artefak **`keuanganku-apk`** → ada file `Keuanganku-vX.Y.Z-debug.apk` yang langsung bisa diinstall di HP.
+4. Untuk rilis permanen: **push tag** `v1.0.0` (atau apa pun berawalan `v`) → GitHub Release dibuat otomatis dengan APK terlampir.
 
-## 📊 Database Schema
+### Menandatangani rilis (opsional tapi disarankan)
+Tambahkan secret berikut di **Settings → Secrets and variables → Actions** supaya workflow juga menghasilkan APK rilis bertanda tangan (`Keuanganku-vX.Y.Z-release.apk`):
 
-### Transactions
-- id: String (PK)
-- title: String
-- amount: Double
-- type: INCOME|EXPENSE|TRANSFER_IN|TRANSFER_OUT
-- accountType: CASH|BANK_ACCOUNT|E_WALLET|CREDIT_CARD|INVESTMENT
-- categoryId: String
-- date: Long (timestamp)
-- note: String
-- isDeleted: Boolean
-- createdAt: Long
-- updatedAt: Long
+| Secret | Isi |
+|---|---|
+| `RELEASE_KEYSTORE_BASE64` | file `.keystore`/`.jks` Anda dalam base64 (`base64 -w0 release.keystore`) |
+| `KEYSTORE_PASSWORD` | password keystore |
+| `KEY_ALIAS` | alias kunci penandatangan |
+| `KEY_PASSWORD` | password kunci |
 
-### Categories
-- id: String (PK)
-- name: String
-- icon: String
-- color: String
-- type: INCOME|EXPENSE
-- isSystem: Boolean
-- budgetLimit: Double?
+> Tanpa secret di atas workflow tetap sukses dan tetap menghasilkan APK debug yang bisa diinstall.
 
-### Bills
-- id: String (PK)
-- title: String
-- amount: Double
-- dueDate: Long
-- isPaid: Boolean
-- paidDate: Long?
-- isRecurring: Boolean
-- reminderDaysBefore: Int
+### Secret opsional lain
+- `GOOGLE_SERVICES_JSON` — base64 dari `app/google-services.json`, berguna bila file tersebut tidak ikut di-commit.
+
+## 🔐 Keamanan & Privasi
+
+- **Firestore rules**: deploy `firestore.rules` yang ada di root repositori agar setiap user hanya bisa membaca/menulis datanya sendiri:
+  ```bash
+  firebase deploy --only firestore:rules
+  ```
+  Pola akses yang dipakai aplikasi: `users/{uid}/transactions|bills|categories/...`
+- **App Check (disarankan)**: aktifkan App Check di Firebase Console (Play Integrity untuk rilis / Debug provider untuk pengembangan) lalu tambahkan provider-nya di `MainActivity` agar Firestore hanya menerima request dari aplikasi asli.
+- **Android backup**: database Room & preferensi **tidak** ikut Auto Backup/cloud backup (lihat `app/src/main/res/xml/backup_rules.xml` & `data_extraction_rules.xml`) — data finansial hanya "keluar" perangkat lewat sinkronisasi Firebase yang Anda pilih.
+- **`google-services.json`**: berisi kunci API Android project Firebase Anda. Restrict key tersebut di Firebase Console (package + SHA-1) bila repositori bersifat publik, atau pindahkan ke secret `GOOGLE_SERVICES_JSON` dan hapus dari repo.
+- **Catatan sinkronisasi**: data yang dibuat saat *mode offline (guest)* baru diunggah saat Anda login dan sinkronisasi penuh dijalankan; penghapusan antar perangkat disebarkan lewat sinkronisasi realtime.
 
 ## 🧪 Testing
 
-### Unit Tests
 ```bash
-./gradlew test
+./gradlew testDebugUnitTest          # unit + Robolectric (host)
+./gradlew connectedAndroidTest       # instrumented (butuh emulator/perangkat)
 ```
 
-### Instrumentation Tests
-```bash
-./gradlew connectedAndroidTest
-```
+## 📄 Lisensi
 
-## 🔒 Security Features
-
-1. **Firebase App Check**: Mencegah akses API dari aplikasi tidak resmi
-2. **Firestore Rules**: Row-level security berdasarkan user ID
-3. **Local Encryption**: Room database encryption (opsional)
-4. **Secure Storage**: Credentials di EncryptedSharedPreferences
-
-## 📄 License
-
-MIT License
-
----
-
-**Version**: 2.0.0  
-**Min SDK**: 24  
-**Target SDK**: 36
+MIT License.

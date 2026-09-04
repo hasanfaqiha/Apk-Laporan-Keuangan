@@ -87,4 +87,15 @@ Thumbs.db
 
 # Android SDK path (machine-specific)
 local.properties
+
+# Release signing (injected by CI from GitHub secrets; never commit)
+keystore.properties
+keystore/
+*.keystore
+*.jks
+
+# Firebase CLI
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
 ```

@@ -1,9 +1,14 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -31,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
@@ -111,6 +117,23 @@ enum class FinanceTab(val title: String, val icon: ImageVector, val tag: String)
 @Composable
 fun FinanceAppFrame(viewModel: FinanceViewModel) {
     var currentTab by remember { mutableStateOf(FinanceTab.DASHBOARD) }
+
+    // Android 13+ requires a runtime permission before notifications can be shown,
+    // otherwise the bill-reminder notifications are silently blocked.
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Ignored: reminders simply stay off if the user declines. */ }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     
     // States for navigating from quick-actions and triggering form opening automatically
     var showAddFormInitially by remember { mutableStateOf(false) }

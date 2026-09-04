@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// ============================================================
+// KeuanganKu — Cloud Firestore security rules
+// ------------------------------------------------------------
+// Data layout used by the app:
+//   users/{userId}/transactions/{documentId}
+//   users/{userId}/bills/{documentId}
+//   users/{userId}/categories/{documentId}
+//
+// Every document lives under its owner's uid and only the signed-in
+// owner may read or write it.
+//
+// Deploy with the Firebase CLI from the repository root:
+//   firebase deploy --only firestore:rules
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Per-user finance data: only the owning user can access their data.
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}
