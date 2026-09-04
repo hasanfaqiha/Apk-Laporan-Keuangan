@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.data.AppLock
 import com.example.data.Category
 import com.example.data.SyncLog
 import com.example.viewmodel.FinanceViewModel
@@ -48,7 +49,8 @@ fun SettingsScreen(
     val categories by viewModel.categories.collectAsState()
     val summary by viewModel.financeSummary.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Pengeluaran, 1 = Pemasukan, 2 = Info Cloud / CC
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Pengeluaran, 1 = Pemasukan, 2 = Fitur Premium, 3 = Info Cloud / CC, 4 = Log Cloud
+    var premiumRoute by remember { mutableStateOf("home") } // home | recurring | budgets
 
     // Dialog States
     var showAddDialog by remember { mutableStateOf(false) }
@@ -115,12 +117,18 @@ fun SettingsScreen(
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Info & Fitur", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
-                    icon = { Icon(Icons.Default.Info, contentDescription = null) }
+                    text = { Text("Fitur", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                    icon = { Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFF59E0B)) }
                 )
                 Tab(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
+                    text = { Text("Info & Fitur", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                    icon = { Icon(Icons.Default.Info, contentDescription = null) }
+                )
+                Tab(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
                     text = { Text("Log Cloud", fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                     icon = { Icon(Icons.Default.Dns, contentDescription = null) }
                 )
@@ -158,6 +166,23 @@ fun SettingsScreen(
                     )
                 }
                 2 -> {
+                    // Premium features: app lock, recurring transactions, budgets
+                    when (premiumRoute) {
+                        "recurring" -> RecurringTransactionsScreen(
+                            viewModel = viewModel,
+                            onBack = { premiumRoute = "home" }
+                        )
+                        "budgets" -> BudgetsScreen(
+                            viewModel = viewModel,
+                            onBack = { premiumRoute = "home" }
+                        )
+                        else -> PremiumHubSection(
+                            onOpenRecurring = { premiumRoute = "recurring" },
+                            onOpenBudgets = { premiumRoute = "budgets" }
+                        )
+                    }
+                }
+                3 -> {
                     // Credit Card Logic & Cloud Hosting FAQ Info Section
                     val selectedTheme by viewModel.selectedTheme.collectAsState()
                     InfoAndFaqSection(
@@ -173,7 +198,7 @@ fun SettingsScreen(
                         }
                     )
                 }
-                3 -> {
+                4 -> {
                     val syncLogs by viewModel.syncManager.syncLogs.collectAsState()
                     val lastError by viewModel.syncManager.lastError.collectAsState()
                     CloudLogMonitorSection(
@@ -302,6 +327,394 @@ fun SettingsScreen(
             }
         )
     }
+}
+
+// =========================================================================
+// Premium hub (Settings -> Fitur): app lock, recurring & budgets entry points
+// =========================================================================
+
+@Composable
+fun PremiumHubSection(
+    onOpenRecurring: () -> Unit,
+    onOpenBudgets: () -> Unit
+) {
+    val context = LocalContext.current
+    val lockEnabled by AppLock.enabled.collectAsState()
+    var showPinSetup by remember { mutableStateOf(false) }
+    var pinSetupMode by remember { mutableStateOf("enable") } // "enable" | "change"
+    var showDisableDialog by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        Text(
+            text = "Fitur Premium",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+        )
+        Text(
+            text = "Keamanan & otomatisasi yang biasanya berbayar di aplikasi lain — gratis di KeuanganKu.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- App lock card ---
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Kunci Aplikasi (PIN)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Proteksi data finansial Anda: aplikasi terkunci otomatis setiap kali dibuka kembali atau di-background.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (lockEnabled) {
+                    Text(
+                        text = "Status: Aktif",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF10B981)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                pinSetupMode = "change"
+                                showPinSetup = true
+                            },
+                            modifier = Modifier.weight(1f).testTag("change_pin_button")
+                        ) {
+                            Text("Ubah PIN")
+                        }
+                        OutlinedButton(
+                            onClick = { showDisableDialog = true },
+                            modifier = Modifier.weight(1f).testTag("disable_lock_button")
+                        ) {
+                            Text("Nonaktifkan")
+                        }
+                    }
+                    if (AppLock.biometricAvailable(context)) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Fingerprint,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Sidik jari / biometrik perangkat juga bisa dipakai untuk membuka.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            pinSetupMode = "enable"
+                            showPinSetup = true
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("enable_lock_button")
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Aktifkan Kunci Aplikasi")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // --- Feature entry rows ---
+        PremiumNavRow(
+            icon = Icons.Default.DateRange,
+            title = "Transaksi Berulang",
+            description = "Gaji, cicilan, langganan & pengeluaran rutin dicatat otomatis (harian/mingguan/bulanan/tahunan).",
+            onClick = onOpenRecurring,
+            testTag = "open_recurring_row"
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        PremiumNavRow(
+            icon = Icons.Default.AccountBalanceWallet,
+            title = "Budget Bulanan per Kategori",
+            description = "Tetapkan batas pengeluaran tiap kategori, pantau progres bulan ini, dapat notifikasi saat terlampaui.",
+            onClick = onOpenBudgets,
+            testTag = "open_budgets_row"
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // --- PIN setup / change dialog ---
+    if (showPinSetup) {
+        PinSetupDialog(
+            mode = pinSetupMode,
+            onDismiss = { showPinSetup = false },
+            onSaved = {
+                showPinSetup = false
+                Toast.makeText(
+                    context,
+                    if (pinSetupMode == "enable") "Kunci aplikasi diaktifkan" else "PIN berhasil diubah",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
+    // --- Disable dialog (requires current PIN) ---
+    if (showDisableDialog) {
+        DisableLockDialog(
+            onDismiss = { showDisableDialog = false },
+            onDisabled = {
+                showDisableDialog = false
+                Toast.makeText(context, "Kunci aplikasi dinonaktifkan", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}
+
+@Composable
+private fun PremiumNavRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .testTag(testTag),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinSetupDialog(
+    mode: String, // "enable" | "change"
+    onDismiss: () -> Unit,
+    onSaved: () -> Unit
+) {
+    val context = LocalContext.current
+    var oldPin by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(if (mode == "enable") "Aktifkan Kunci Aplikasi" else "Ubah PIN", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                if (mode == "change") {
+                    OutlinedTextField(
+                        value = oldPin,
+                        onValueChange = { oldPin = it },
+                        label = { Text("PIN saat ini") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        ),
+                        modifier = Modifier.fillMaxWidth().testTag("pin_old_input")
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+                OutlinedTextField(
+                    value = newPin,
+                    onValueChange = { newPin = it.filter(Char::isDigit) },
+                    label = { Text("PIN baru (min. 4 angka)") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("pin_new_input")
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = confirmPin,
+                    onValueChange = { confirmPin = it.filter(Char::isDigit) },
+                    label = { Text("Ulangi PIN baru") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("pin_confirm_input")
+                )
+                error?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    error = null
+                    if (mode == "change" && !AppLock.verify(context, oldPin)) {
+                        error = "PIN saat ini salah."
+                        return@Button
+                    }
+                    if (newPin.length < 4) {
+                        error = "PIN minimal 4 angka."
+                        return@Button
+                    }
+                    if (newPin != confirmPin) {
+                        error = "PIN baru tidak cocok."
+                        return@Button
+                    }
+                    AppLock.enable(context, newPin)
+                    onSaved()
+                },
+                modifier = Modifier.testTag("confirm_pin_button")
+            ) {
+                Text("Simpan")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DisableLockDialog(
+    onDismiss: () -> Unit,
+    onDisabled: () -> Unit
+) {
+    val context = LocalContext.current
+    var currentPin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nonaktifkan Kunci Aplikasi", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    text = "Masukkan PIN untuk konfirmasi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = currentPin,
+                    onValueChange = { currentPin = it.filter(Char::isDigit) },
+                    label = { Text("PIN saat ini") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag("disable_pin_input")
+                )
+                error?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    error = null
+                    if (!AppLock.verify(context, currentPin)) {
+                        error = "PIN salah."
+                        return@Button
+                    }
+                    AppLock.disable(context)
+                    onDisabled()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag("confirm_disable_lock_button")
+            ) {
+                Text("Nonaktifkan", color = MaterialTheme.colorScheme.onError)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal")
+            }
+        }
+    )
 }
 
 @Composable

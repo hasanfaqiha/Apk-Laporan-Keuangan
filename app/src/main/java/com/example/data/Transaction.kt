@@ -1,5 +1,6 @@
 package com.example.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -12,5 +13,9 @@ data class Transaction(
     val accountType: String, // "CASH" or "BANK"
     val category: String,
     val dateMillis: Long = System.currentTimeMillis(),
-    val note: String = ""
+    val note: String = "",
+    // Timestamp of the last local edit. Used for last-write-wins conflict
+    // resolution during cloud sync (0 = legacy record created before this field).
+    @ColumnInfo(defaultValue = "0")
+    val updatedAt: Long = 0L
 )
