@@ -27,23 +27,30 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.data.AppLock
 import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
 import com.example.data.scheduleBillReminderWork
 import com.example.ui.screens.AnalysisScreen
 import com.example.ui.screens.BillsScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.LockScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.TransactionsScreen
 import com.example.ui.screens.AuthGateScreen
@@ -53,11 +60,13 @@ import com.example.viewmodel.FinanceViewModelFactory
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.MaterialTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         scheduleBillReminderWork(applicationContext)
+        // Reflect the configured app-lock PIN (if any) into the process state.
+        AppLock.init(applicationContext)
         setContent {
             val context = LocalContext.current
             
@@ -73,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 viewModel.loadTheme(context)
                 viewModel.triggerBillReminders(context)
                 viewModel.checkAndGenerateCreditCardBills()
+                viewModel.generateDueRecurringTransactions()
+                viewModel.checkBudgetsAndNotify(context)
             }
 
             val selectedTheme by viewModel.selectedTheme.collectAsState()
@@ -85,20 +96,40 @@ class MainActivity : ComponentActivity() {
             val isLoggedIn by viewModel.isLoggedIn.collectAsState()
             val hasSkippedAuth by viewModel.hasSkippedAuth.collectAsState()
 
+            val appLockEnabled by AppLock.enabled.collectAsState()
+            val appLocked by AppLock.locked.collectAsState()
+
+            // Re-lock as soon as the app goes to the background so the next
+            // foreground shows the PIN/biometric gate again.
+            val lifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(lifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_STOP) AppLock.lockNow()
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+
             MyApplicationTheme(darkTheme = darkTheme) {
                 androidx.compose.material3.Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (isLoggedIn || hasSkippedAuth) {
-                        FinanceAppFrame(viewModel = viewModel)
-                    } else {
-                        AuthGateScreen(
-                            viewModel = viewModel,
-                            onSkip = {
-                                viewModel.hasSkippedAuth.value = true
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (appLockEnabled && appLocked) {
+                            LockScreen(onUnlocked = { AppLock.unlock() })
+                        } else {
+                            if (isLoggedIn || hasSkippedAuth) {
+                                FinanceAppFrame(viewModel = viewModel)
+                            } else {
+                                AuthGateScreen(
+                                    viewModel = viewModel,
+                                    onSkip = {
+                                        viewModel.hasSkippedAuth.value = true
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }

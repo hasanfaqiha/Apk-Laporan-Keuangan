@@ -58,6 +58,7 @@ fun AnalysisScreen(
 ) {
     val summary by viewModel.analysisSummary.collectAsState()
     val analysisPeriod by viewModel.analysisPeriod.collectAsState()
+    val trendTransactions by viewModel.transactions.collectAsState()
     val scrollState = rememberScrollState()
 
     var analysisType by remember { mutableStateOf("EXPENSE") } // EXPENSE or INCOME
@@ -282,6 +283,11 @@ fun AnalysisScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Interactive 6-month income/expense trend (tap a column for details)
+        MonthlyTrendCard(transactions = trendTransactions)
 
         Spacer(modifier = Modifier.height(40.dp))
     }

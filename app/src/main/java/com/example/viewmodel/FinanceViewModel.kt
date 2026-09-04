@@ -9,11 +9,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.Bill
+import com.example.data.Budget
 import com.example.data.Category
 import com.example.data.FinanceDatabase
 import com.example.data.FinanceRepository
+import com.example.data.RecurringRule
 import com.example.data.Transaction
 import com.example.data.FirebaseSyncManager
+import com.example.data.computeBudgetUsages
 import com.example.data.computeCreditCardBills
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -100,6 +103,22 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             initialValue = emptyList()
         )
 
+    // List of recurring transaction rules
+    val recurringRules: StateFlow<List<RecurringRule>> = repository.allRecurringRules
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Monthly category budgets
+    val budgets: StateFlow<List<Budget>> = repository.allBudgets
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // Dynamic App Theme Preference State
     val selectedTheme = MutableStateFlow("SYSTEM") // SYSTEM, LIGHT, DARK
 
@@ -134,6 +153,8 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             }
             // Check and generate credit card bills if applicable
             checkAndGenerateCreditCardBills()
+            // Generate any due recurring transactions (idempotent)
+            generateDueRecurringTransactions()
         }
     }
 
@@ -165,6 +186,7 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     // Transaction Actions
     fun addTransaction(title: String, amount: Double, type: String, accountType: String, category: String, dateMillis: Long, note: String) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
             val transaction = Transaction(
                 id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
                 title = title,
@@ -173,7 +195,8 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
                 accountType = accountType,
                 category = category,
                 dateMillis = dateMillis,
-                note = note
+                note = note,
+                updatedAt = now
             )
             repository.insertTransaction(transaction)
             if (syncManager.isLoggedIn) {
@@ -193,9 +216,10 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun updateTransaction(transaction: Transaction) {
         viewModelScope.launch {
-            repository.updateTransaction(transaction)
+            val stamped = transaction.copy(updatedAt = System.currentTimeMillis())
+            repository.updateTransaction(stamped)
             if (syncManager.isLoggedIn) {
-                syncManager.syncTransactionToCloud(transaction)
+                syncManager.syncTransactionToCloud(stamped)
             }
         }
     }
@@ -203,13 +227,15 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     // Bill Actions
     fun addBill(title: String, amount: Double, dueDateMillis: Long, category: String, note: String, context: Context? = null) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
             val bill = Bill(
                 id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
                 title = title,
                 amount = amount,
                 dueDateMillis = dueDateMillis,
                 category = category,
-                note = note
+                note = note,
+                updatedAt = now
             )
             repository.insertBill(bill)
             if (syncManager.isLoggedIn) {
@@ -221,7 +247,7 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun toggleBillPaid(bill: Bill, context: Context? = null) {
         viewModelScope.launch {
-            val updated = bill.copy(isPaid = !bill.isPaid)
+            val updated = bill.copy(isPaid = !bill.isPaid, updatedAt = System.currentTimeMillis())
             repository.updateBill(updated)
             if (syncManager.isLoggedIn) {
                 syncManager.syncBillToCloud(updated)
@@ -241,9 +267,10 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun updateBill(bill: Bill) {
         viewModelScope.launch {
-            repository.updateBill(bill)
+            val stamped = bill.copy(updatedAt = System.currentTimeMillis())
+            repository.updateBill(stamped)
             if (syncManager.isLoggedIn) {
-                syncManager.syncBillToCloud(bill)
+                syncManager.syncBillToCloud(stamped)
             }
         }
     }
@@ -310,9 +337,10 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
                 val billList = repository.allBills.first()
                 val newBills = computeCreditCardBills(transList, billList)
                 newBills.forEach { bill ->
-                    repository.insertBill(bill)
+                    val stamped = bill.copy(updatedAt = System.currentTimeMillis())
+                    repository.insertBill(stamped)
                     if (syncManager.isLoggedIn) {
-                        syncManager.syncBillToCloud(bill)
+                        syncManager.syncBillToCloud(stamped)
                     }
                 }
             } catch (e: Exception) {
@@ -327,7 +355,8 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             val category = Category(
                 id = kotlin.random.Random.nextInt(1000000, 2_000_000_000),
                 name = name,
-                type = type
+                type = type,
+                updatedAt = System.currentTimeMillis()
             )
             repository.insertCategory(category)
             if (syncManager.isLoggedIn) {
@@ -338,9 +367,10 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun updateCategory(category: Category) {
         viewModelScope.launch {
-            repository.updateCategory(category)
+            val stamped = category.copy(updatedAt = System.currentTimeMillis())
+            repository.updateCategory(stamped)
             if (syncManager.isLoggedIn) {
-                syncManager.syncCategoryToCloud(category)
+                syncManager.syncCategoryToCloud(stamped)
             }
         }
     }
@@ -351,6 +381,123 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             if (syncManager.isLoggedIn) {
                 syncManager.deleteCategoryFromCloud(category.id)
             }
+        }
+    }
+
+    // --- Recurring transactions ------------------------------------------
+
+    private var recurringGenerationRunning = false
+
+    /** Generates all due recurring-rule transactions (idempotent by design). */
+    fun generateDueRecurringTransactions() {
+        if (recurringGenerationRunning) return
+        recurringGenerationRunning = true
+        viewModelScope.launch {
+            try {
+                val created = repository.generateDueRecurringTransactions()
+                if (syncManager.isLoggedIn) {
+                    created.forEach { syncManager.syncTransactionToCloud(it) }
+                }
+            } finally {
+                recurringGenerationRunning = false
+            }
+        }
+    }
+
+    fun addRecurringRule(
+        title: String,
+        amount: Double,
+        type: String,
+        accountType: String,
+        category: String,
+        frequency: String,
+        startMillis: Long,
+        note: String
+    ) {
+        viewModelScope.launch {
+            val rule = RecurringRule(
+                title = title.trim(),
+                amount = amount,
+                type = type,
+                accountType = accountType,
+                category = category.ifBlank { "Lain-lain" },
+                frequency = frequency,
+                startDateMillis = startMillis,
+                nextRunMillis = startMillis,
+                isActive = true,
+                note = note.trim()
+            )
+            repository.insertRecurringRule(rule)
+            // A rule starting today (or earlier) becomes visible immediately.
+            generateDueRecurringTransactions()
+        }
+    }
+
+    fun toggleRecurringRule(rule: RecurringRule, active: Boolean) {
+        viewModelScope.launch {
+            repository.updateRecurringRule(rule.copy(isActive = active))
+        }
+    }
+
+    fun deleteRecurringRule(id: Int) {
+        viewModelScope.launch {
+            repository.deleteRecurringRule(id)
+        }
+    }
+
+    // --- Monthly category budgets ----------------------------------------
+
+    /** Creates or updates the monthly limit for one category. */
+    fun upsertBudget(category: String, monthlyLimit: Double) {
+        viewModelScope.launch {
+            if (monthlyLimit <= 0) {
+                repository.getAllBudgetsDirect()
+                    .find { it.category == category }
+                    ?.let { repository.deleteBudget(it.id) }
+                return@launch
+            }
+            val existing = repository.getAllBudgetsDirect().find { it.category == category }
+            if (existing != null) {
+                repository.updateBudget(existing.copy(monthlyLimit = monthlyLimit))
+            } else {
+                repository.insertBudget(Budget(category = category, monthlyLimit = monthlyLimit))
+            }
+        }
+    }
+
+    fun deleteBudget(id: Int) {
+        viewModelScope.launch {
+            repository.deleteBudget(id)
+        }
+    }
+
+    /** Posts a notification when one or more monthly budgets are exceeded. */
+    fun checkBudgetsAndNotify(context: Context) {
+        viewModelScope.launch {
+            val allTx = repository.getAllTransactionsDirect()
+            val budgetList = repository.getAllBudgetsDirect()
+            if (budgetList.isEmpty()) return@launch
+            val exceeded = computeBudgetUsages(allTx, budgetList).filter { it.exceeded }
+            if (exceeded.isEmpty()) return@launch
+
+            val channelId = "budget_alerts_channel"
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                manager.createNotificationChannel(
+                    NotificationChannel(channelId, "Pengingat Budget", NotificationManager.IMPORTANCE_DEFAULT)
+                        .apply { description = "Notifikasi saat pengeluaran melewati budget bulanan kategori" }
+                )
+            }
+            val details = exceeded.joinToString("\n") { usage ->
+                "- ${usage.budget.category}: ${formatRupiah(usage.spent)} dari ${formatRupiah(usage.budget.monthlyLimit)}"
+            }
+            val builder = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentTitle("Budget bulanan terlampaui")
+                .setContentText("${exceeded.size} kategori melebihi budget bulan ini.")
+                .setStyle(NotificationCompat.BigTextStyle().bigText(details))
+                .setAutoCancel(true)
+            manager.notify(9001, builder.build())
         }
     }
 

@@ -101,7 +101,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             "accountType" to transaction.accountType,
             "category" to transaction.category,
             "dateMillis" to transaction.dateMillis,
-            "note" to transaction.note
+            "note" to transaction.note,
+            "updatedAt" to transaction.updatedAt
         )
         db.collection("users").document(uid)
             .collection("transactions").document(transaction.id.toString())
@@ -141,7 +142,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             "dueDateMillis" to bill.dueDateMillis,
             "isPaid" to bill.isPaid,
             "category" to bill.category,
-            "note" to bill.note
+            "note" to bill.note,
+            "updatedAt" to bill.updatedAt
         )
         db.collection("users").document(uid)
             .collection("bills").document(bill.id.toString())
@@ -177,7 +179,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
         val docData = hashMapOf(
             "id" to category.id,
             "name" to category.name,
-            "type" to category.type
+            "type" to category.type,
+            "updatedAt" to category.updatedAt
         )
         db.collection("users").document(uid)
             .collection("categories").document(category.id.toString())
@@ -260,7 +263,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                     val id = doc.getLong("id")?.toInt() ?: return@mapNotNull null
                     val name = doc.getString("name") ?: "Kategori Tanpa Nama"
                     val type = doc.getString("type") ?: "EXPENSE"
-                    Category(id = id, name = name, type = type)
+                    val updatedAt = doc.getLong("updatedAt") ?: 0L
+                    Category(id = id, name = name, type = type, updatedAt = updatedAt)
                 }
                 addLog("DOWNLOAD", "SUCCESS", "Selesai mengunduh ${cloudCategories.size} kategori.")
 
@@ -275,6 +279,22 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                             // Align local ID with cloud ID to avoid duplicates
                             repository.deleteCategory(localCat)
                             repository.insertCategory(matchingCloudCat)
+                        } else if (matchingCloudCat.updatedAt > localCat.updatedAt) {
+                            // Cloud copy was edited (e.g. renamed) after this local row.
+                            repository.updateCategory(matchingCloudCat)
+                        } else if (matchingCloudCat.updatedAt < localCat.updatedAt) {
+                            // This device renamed the category first: push it back up.
+                            val docData = hashMapOf(
+                                "id" to localCat.id,
+                                "name" to localCat.name,
+                                "type" to localCat.type,
+                                "updatedAt" to localCat.updatedAt
+                            )
+                            runWithRetry {
+                                db.collection("users").document(uid)
+                                    .collection("categories").document(localCat.id.toString())
+                                    .set(docData, SetOptions.merge())
+                            }
                         }
                     } else {
                         // Not in cloud. If it has a local auto-increment ID (< 1000000), re-index it first to avoid collision
@@ -288,8 +308,13 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                             localCat
                         }
 
-                        // Upload to cloud
-                        val docData = hashMapOf("id" to finalCat.id, "name" to finalCat.name, "type" to finalCat.type)
+                        // Upload to cloud (first push: stamp a fresh timestamp)
+                        val docData = hashMapOf(
+                            "id" to finalCat.id,
+                            "name" to finalCat.name,
+                            "type" to finalCat.type,
+                            "updatedAt" to if (finalCat.updatedAt > 0) finalCat.updatedAt else System.currentTimeMillis()
+                        )
                         runWithRetry {
                             db.collection("users").document(uid)
                                 .collection("categories").document(finalCat.id.toString())
@@ -326,6 +351,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                     val category = doc.getString("category") ?: "Lain-lain"
                     val dateMillis = doc.getLong("dateMillis") ?: System.currentTimeMillis()
                     val note = doc.getString("note") ?: ""
+                    val updatedAt = doc.getLong("updatedAt") ?: 0L
                     Transaction(
                         id = id,
                         title = title,
@@ -334,7 +360,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         accountType = accountType,
                         category = category,
                         dateMillis = dateMillis,
-                        note = note
+                        note = note,
+                        updatedAt = updatedAt
                     )
                 }
                 addLog("DOWNLOAD", "SUCCESS", "Selesai mengunduh ${cloudTransactions.size} transaksi.")
@@ -351,7 +378,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         val newT = t.copy(id = newId)
                         repository.insertTransaction(newT)
                         
-                        // Upload immediately
+                        // Upload immediately (first push of a re-indexed guest entry)
+                        val nowStamp = System.currentTimeMillis()
                         val docData = hashMapOf(
                             "id" to newT.id,
                             "title" to newT.title,
@@ -360,7 +388,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                             "accountType" to newT.accountType,
                             "category" to newT.category,
                             "dateMillis" to newT.dateMillis,
-                            "note" to newT.note
+                            "note" to newT.note,
+                            "updatedAt" to nowStamp
                         )
                         runWithRetry {
                             db.collection("users").document(uid)
@@ -373,21 +402,28 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         // Check if exists in cloud
                         if (cloudTransMap.containsKey(t.id)) {
                             keepLocalTransIds.add(t.id)
-                            // Upload local to merge edits or just make sure cloud is up to date
-                            val docData = hashMapOf(
-                                "id" to t.id,
-                                "title" to t.title,
-                                "amount" to t.amount,
-                                "type" to t.type,
-                                "accountType" to t.accountType,
-                                "category" to t.category,
-                                "dateMillis" to t.dateMillis,
-                                "note" to t.note
-                            )
-                            runWithRetry {
-                                db.collection("users").document(uid)
-                                    .collection("transactions").document(t.id.toString())
-                                    .set(docData, SetOptions.merge())
+                            // Last-write-wins: only push the local copy when it is not
+                            // older than the cloud copy. Otherwise the other device's
+                            // newer edit stays authoritative and is kept as-is.
+                            val cloudVersion = cloudTransMap[t.id]
+                            if (cloudVersion == null || t.updatedAt >= cloudVersion.updatedAt) {
+                                // Upload local to merge edits or just make sure cloud is up to date
+                                val docData = hashMapOf(
+                                    "id" to t.id,
+                                    "title" to t.title,
+                                    "amount" to t.amount,
+                                    "type" to t.type,
+                                    "accountType" to t.accountType,
+                                    "category" to t.category,
+                                    "dateMillis" to t.dateMillis,
+                                    "note" to t.note,
+                                    "updatedAt" to t.updatedAt
+                                )
+                                runWithRetry {
+                                    db.collection("users").document(uid)
+                                        .collection("transactions").document(t.id.toString())
+                                        .set(docData, SetOptions.merge())
+                                }
                             }
                         } else {
                             // Not present in cloud: this entry was created while signed out
@@ -402,7 +438,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                 "accountType" to t.accountType,
                                 "category" to t.category,
                                 "dateMillis" to t.dateMillis,
-                                "note" to t.note
+                                "note" to t.note,
+                                "updatedAt" to if (t.updatedAt > 0) t.updatedAt else System.currentTimeMillis()
                             )
                             runWithRetry {
                                 db.collection("users").document(uid)
@@ -437,6 +474,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                     val isPaid = doc.getBoolean("isPaid") ?: false
                     val category = doc.getString("category") ?: "Lain-lain"
                     val note = doc.getString("note") ?: ""
+                    val updatedAt = doc.getLong("updatedAt") ?: 0L
                     Bill(
                         id = id,
                         title = title,
@@ -444,7 +482,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         dueDateMillis = dueDateMillis,
                         isPaid = isPaid,
                         category = category,
-                        note = note
+                        note = note,
+                        updatedAt = updatedAt
                     )
                 }
                 addLog("DOWNLOAD", "SUCCESS", "Selesai mengunduh ${cloudBills.size} tagihan.")
@@ -461,7 +500,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         val newB = b.copy(id = newId)
                         repository.insertBill(newB)
 
-                        // Upload immediately
+                        // Upload immediately (first push of a re-indexed guest entry)
+                        val nowStamp = System.currentTimeMillis()
                         val docData = hashMapOf(
                             "id" to newB.id,
                             "title" to newB.title,
@@ -469,7 +509,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                             "dueDateMillis" to newB.dueDateMillis,
                             "isPaid" to newB.isPaid,
                             "category" to newB.category,
-                            "note" to newB.note
+                            "note" to newB.note,
+                            "updatedAt" to nowStamp
                         )
                         runWithRetry {
                             db.collection("users").document(uid)
@@ -482,20 +523,26 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                         // Check if exists in cloud
                         if (cloudBillsMap.containsKey(b.id)) {
                             keepLocalBillIds.add(b.id)
-                            // Upload local to merge edits
-                            val docData = hashMapOf(
-                                "id" to b.id,
-                                "title" to b.title,
-                                "amount" to b.amount,
-                                "dueDateMillis" to b.dueDateMillis,
-                                "isPaid" to b.isPaid,
-                                "category" to b.category,
-                                "note" to b.note
-                            )
-                            runWithRetry {
-                                db.collection("users").document(uid)
-                                    .collection("bills").document(b.id.toString())
-                                    .set(docData, SetOptions.merge())
+                            // Last-write-wins: only push the local copy when it is not
+                            // older than the cloud copy.
+                            val cloudVersion = cloudBillsMap[b.id]
+                            if (cloudVersion == null || b.updatedAt >= cloudVersion.updatedAt) {
+                                // Upload local to merge edits
+                                val docData = hashMapOf(
+                                    "id" to b.id,
+                                    "title" to b.title,
+                                    "amount" to b.amount,
+                                    "dueDateMillis" to b.dueDateMillis,
+                                    "isPaid" to b.isPaid,
+                                    "category" to b.category,
+                                    "note" to b.note,
+                                    "updatedAt" to b.updatedAt
+                                )
+                                runWithRetry {
+                                    db.collection("users").document(uid)
+                                        .collection("bills").document(b.id.toString())
+                                        .set(docData, SetOptions.merge())
+                                }
                             }
                         } else {
                             // Not present in cloud: this entry was created while signed out
@@ -509,7 +556,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                 "dueDateMillis" to b.dueDateMillis,
                                 "isPaid" to b.isPaid,
                                 "category" to b.category,
-                                "note" to b.note
+                                "note" to b.note,
+                                "updatedAt" to if (b.updatedAt > 0) b.updatedAt else System.currentTimeMillis()
                             )
                             runWithRetry {
                                 db.collection("users").document(uid)
@@ -592,10 +640,16 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                     val category = doc.getString("category") ?: ""
                                     val dateMillis = doc.getLong("dateMillis") ?: System.currentTimeMillis()
                                     val note = doc.getString("note") ?: ""
-                                    
+                                    val docUpdatedAt = doc.getLong("updatedAt") ?: 0L
+
+                                    // Last-write-wins: never let an older cloud edit
+                                    // overwrite a newer unsynced local edit.
+                                    val existing = repository.getTransactionById(id)
+                                    if (existing != null && docUpdatedAt < existing.updatedAt) continue
+
                                     val isNew = dc.type == DocumentChange.Type.ADDED
                                     val operationName = if (isNew) "diterima" else "diperbarui"
-                                    
+
                                     repository.insertTransaction(
                                         Transaction(
                                             id = id,
@@ -605,7 +659,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                             accountType = accountType,
                                             category = category,
                                             dateMillis = dateMillis,
-                                            note = note
+                                            note = note,
+                                            updatedAt = docUpdatedAt
                                         )
                                     )
                                     addLog("DOWNLOAD", "SUCCESS", "Transaksi '${title}' $operationName dari cloud.")
@@ -641,10 +696,16 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                     val isPaid = doc.getBoolean("isPaid") ?: false
                                     val category = doc.getString("category") ?: ""
                                     val note = doc.getString("note") ?: ""
-                                    
+                                    val docUpdatedAt = doc.getLong("updatedAt") ?: 0L
+
+                                    // Last-write-wins: never let an older cloud edit
+                                    // overwrite a newer unsynced local edit.
+                                    val existing = repository.getBillById(id)
+                                    if (existing != null && docUpdatedAt < existing.updatedAt) continue
+
                                     val isNew = dc.type == DocumentChange.Type.ADDED
                                     val operationName = if (isNew) "diterima" else "diperbarui"
-                                    
+
                                     repository.insertBill(
                                         Bill(
                                             id = id,
@@ -653,7 +714,8 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                             dueDateMillis = dueDateMillis,
                                             isPaid = isPaid,
                                             category = category,
-                                            note = note
+                                            note = note,
+                                            updatedAt = docUpdatedAt
                                         )
                                     )
                                     addLog("DOWNLOAD", "SUCCESS", "Tagihan '${title}' $operationName dari cloud.")
@@ -685,15 +747,22 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
                                 DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
                                     val name = doc.getString("name") ?: ""
                                     val type = doc.getString("type") ?: ""
-                                    
+                                    val docUpdatedAt = doc.getLong("updatedAt") ?: 0L
+
+                                    // Last-write-wins: never let an older cloud edit
+                                    // overwrite a newer unsynced local edit.
+                                    val existing = repository.getCategoryById(id)
+                                    if (existing != null && docUpdatedAt < existing.updatedAt) continue
+
                                     val isNew = dc.type == DocumentChange.Type.ADDED
                                     val operationName = if (isNew) "diterima" else "diperbarui"
-                                    
+
                                     repository.insertCategory(
                                         Category(
                                             id = id,
                                             name = name,
-                                            type = type
+                                            type = type,
+                                            updatedAt = docUpdatedAt
                                         )
                                     )
                                     addLog("DOWNLOAD", "SUCCESS", "Kategori '${name}' $operationName dari cloud.")

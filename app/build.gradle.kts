@@ -101,6 +101,8 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation(libs.androidx.biometric)
+  implementation(libs.androidx.fragment.ktx)
   implementation(libs.firebase.auth)
   implementation(libs.firebase.firestore)
   implementation(libs.kotlinx.coroutines.android)
