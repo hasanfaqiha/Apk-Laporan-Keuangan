@@ -15,6 +15,8 @@ import com.example.data.FinanceRepository
 import com.example.data.Transaction
 import com.example.data.FirebaseSyncManager
 import com.example.data.computeCreditCardBills
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +24,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Calendar
 
 class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() {
@@ -31,6 +35,14 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     val isLoggedIn = MutableStateFlow(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null)
     val currentUserEmail = MutableStateFlow(com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email)
     val hasSkippedAuth = MutableStateFlow(false)
+
+    // State for the automatic sync-retry loop: when a cloud write fails while
+    // offline, we keep retrying a full sync (with back-off) until it succeeds,
+    // so data added on this phone eventually reaches the cloud and the other
+    // device, without the user having to tap "sync" manually.
+    private var pendingSyncRetry = false
+    private var autoSyncAttempts = 0
+    private var autoSyncJob: Job? = null
 
     init {
         com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener { auth ->
@@ -42,6 +54,25 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             } else {
                 syncManager.stopRealtimeSync()
                 hasSkippedAuth.value = false
+                // No session: stop any pending automatic retry loop.
+                pendingSyncRetry = false
+                autoSyncAttempts = 0
+                autoSyncJob?.cancel()
+                autoSyncJob = null
+            }
+        }
+
+        syncManager.onCloudWriteFailed = {
+            requestAutomaticSyncRetry()
+        }
+
+        // Session already active at launch (no login screen is shown): converge
+        // with the cloud once, so edits made offline on either phone flow in
+        // and out even before the user opens the sync screen.
+        viewModelScope.launch {
+            delay(3_000)
+            if (syncManager.isLoggedIn && !syncManager.isFullSyncRunning) {
+                runSilentFullSync()
             }
         }
     }
@@ -323,6 +354,51 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
             }
         }
     }
+
+    // --- Automatic cloud sync retry --------------------------------------
+
+    /**
+     * Called whenever an individual cloud write fails (offline, etc.). Starts a
+     * background loop that retries a full sync with increasing back-off until it
+     * succeeds, guaranteeing that local changes are uploaded and both devices
+     * converge even if the phone was offline for a while.
+     */
+    private fun requestAutomaticSyncRetry() {
+        pendingSyncRetry = true
+        if (autoSyncJob?.isActive == true) return
+        autoSyncJob = viewModelScope.launch {
+            while (pendingSyncRetry && isLoggedIn.value) {
+                val retryDelay = when {
+                    autoSyncAttempts <= 0 -> 10_000L
+                    autoSyncAttempts == 1 -> 30_000L
+                    autoSyncAttempts == 2 -> 60_000L
+                    else -> 5 * 60_000L
+                }
+                delay(retryDelay)
+                if (!pendingSyncRetry || !isLoggedIn.value) break
+                if (runSilentFullSync()) {
+                    pendingSyncRetry = false
+                    autoSyncAttempts = 0
+                    break
+                }
+                autoSyncAttempts++
+            }
+            autoSyncJob = null
+        }
+    }
+
+    /** Runs a full bidirectional sync in the background and reports whether it succeeded. */
+    private suspend fun runSilentFullSync(): Boolean =
+        suspendCancellableCoroutine { cont ->
+            if (!syncManager.isLoggedIn || syncManager.isFullSyncRunning) {
+                if (cont.isActive) cont.resume(false)
+                return@suspendCancellableCoroutine
+            }
+            syncManager.performFullSync(
+                onSuccess = { if (cont.isActive) cont.resume(true) },
+                onFailure = { if (cont.isActive) cont.resume(false) }
+            )
+        }
 }
 
 // Data class to wrap calculated metrics

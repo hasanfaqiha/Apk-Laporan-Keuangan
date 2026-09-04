@@ -103,7 +103,23 @@ Tambahkan secret berikut di **Settings → Secrets and variables → Actions** s
 - **App Check (disarankan)**: aktifkan App Check di Firebase Console (Play Integrity untuk rilis / Debug provider untuk pengembangan) lalu tambahkan provider-nya di `MainActivity` agar Firestore hanya menerima request dari aplikasi asli.
 - **Android backup**: database Room & preferensi **tidak** ikut Auto Backup/cloud backup (lihat `app/src/main/res/xml/backup_rules.xml` & `data_extraction_rules.xml`) — data finansial hanya "keluar" perangkat lewat sinkronisasi Firebase yang Anda pilih.
 - **`google-services.json`**: berisi kunci API Android project Firebase Anda. Restrict key tersebut di Firebase Console (package + SHA-1) bila repositori bersifat publik, atau pindahkan ke secret `GOOGLE_SERVICES_JSON` dan hapus dari repo.
-- **Catatan sinkronisasi**: data yang dibuat saat *mode offline (guest)* baru diunggah saat Anda login dan sinkronisasi penuh dijalankan; penghapusan antar perangkat disebarkan lewat sinkronisasi realtime.
+### Cara kerja sinkronisasi (2 HP / multi-perangkat)
+
+- Setiap data baru/ubah langsung dikirim ke Firestore **dan** diterima real-time oleh HP lain yang sedang online (snapshot listener).
+- Saat HP Anda **offline**, data tetap tersimpan lokal; begitu ada koneksi, aplikasi **otomatis mencoba sinkronisasi ulang** (10 dtk → 30 dtk → 1 mnt → 5 mnt, berhenti setelah berhasil).
+- Saat aplikasi dibuka dalam kondisi sudah login, satu sinkronisasi penuh otomatis dijalankan agar data dari HP lain ikut masuk.
+- Data yang dibuat saat **guest/offline sebelum login** ikut diunggah saat login pertama kali (tidak dihapus).
+- Sinkronisasi penuh juga bisa dijalankan manual dari layar Settings.
+
+**Cara tes dengan 2 HP:**
+1. Install APK di HP A dan B → login dengan akun yang sama di keduanya.
+2. Di HP A tambahkan transaksi → dalam beberapa detik muncul di HP B.
+3. Aktifkan mode pesawat di HP B, tambahkan 2 transaksi → matikan mode pesawat → data otomatis tersinkron (retry otomatis, atau saat app dibuka ulang).
+4. Tandai tagihan lunas di HP A → status berubah juga di HP B.
+
+> **Syarat cloud berfungsi:** `google-services.json` harus milik Firebase project Anda, Auth + Firestore diaktifkan, dan `firestore.rules` di-deploy. Tanpa itu, akun bisa dibuat tetapi data tidak tersinkron (lihat bagian Keamanan & Privasi).
+
+> **Catatan teknis (conflict resolution):** sinkronisasi memakai *last-write-wins* tanpa metadata timestamp per baris. Mengedit data yang sama secara bersamaan di dua HP menghasilkan nilai dari penulis terakhir. Untuk data personal ini cukup aman; bila ingin conflict-free, langkah berikutnya adalah menambah kolom `updatedAt` + merge per-field.
 
 ## 🧪 Testing
 

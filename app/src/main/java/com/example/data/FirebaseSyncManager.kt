@@ -46,6 +46,19 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
+    /**
+     * Hook invoked whenever an individual cloud write/delete fails (for example
+     * while the device is offline). FinanceViewModel uses this to schedule an
+     * automatic full-sync retry so entries made on this phone still reach the
+     * cloud (and other devices) without requiring a manual sync.
+     */
+    var onCloudWriteFailed: (() -> Unit)? = null
+
+    /** Notifies [onCloudWriteFailed] that a cloud operation could not complete. */
+    private fun reportCloudWriteFailed() {
+        onCloudWriteFailed?.invoke()
+    }
+
     fun addLog(type: String, status: String, message: String) {
         val newLog = SyncLog(type = type, status = status, message = message)
         val current = _syncLogs.value.toMutableList()
@@ -99,6 +112,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to sync transaction to cloud", e)
                 addLog("UPLOAD", "FAILED", "Gagal mengunggah transaksi '${transaction.title}': ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
@@ -113,6 +127,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to delete transaction from cloud", e)
                 addLog("DELETE", "FAILED", "Gagal menghapus transaksi ID $id dari cloud: ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
@@ -137,6 +152,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to sync bill to cloud", e)
                 addLog("UPLOAD", "FAILED", "Gagal mengunggah tagihan '${bill.title}': ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
@@ -151,6 +167,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to delete bill from cloud", e)
                 addLog("DELETE", "FAILED", "Gagal menghapus tagihan ID $id dari cloud: ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
@@ -171,6 +188,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to sync category to cloud", e)
                 addLog("UPLOAD", "FAILED", "Gagal mengunggah kategori '${category.name}': ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
@@ -185,6 +203,7 @@ class FirebaseSyncManager(private val repository: FinanceRepository) {
             .addOnFailureListener { e ->
                 Log.e("FirebaseSync", "Failed to delete category from cloud", e)
                 addLog("DELETE", "FAILED", "Gagal menghapus kategori ID $id dari cloud: ${e.message}")
+                reportCloudWriteFailed()
             }
     }
 
