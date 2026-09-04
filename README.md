@@ -13,6 +13,10 @@ Aplikasi Android (Kotlin + Jetpack Compose) untuk mencatat pengeluaran harian, p
 - **Sinkronisasi cloud opsional**: login email/password (Firebase Auth) → sinkron dua arah + realtime (Firestore)
 - **Ekspor CSV**: backup/portabilitas data transaksi & tagihan (RFC 4180)
 - **Tema**: light/dark/system, palet brand BCA, Material 3
+- **🔐 Kunci aplikasi (PIN)**: proteksi data finansial — terkunci otomatis saat app dibuka kembali/di-background, bisa dibuka dengan sidik jari/biometrik
+- **🔁 Transaksi berulang**: gaji, cicilan, langganan & pengeluaran rutin dicatat otomatis (harian/mingguan/bulanan/tahunan; jadwal bulanan tetap di tanggal mulai walau bulan pendek)
+- **🎯 Budget bulanan per kategori**: batas pengeluaran per kategori + progres bulan berjalan + notifikasi saat terlampaui
+- **📊 Grafik tren interaktif**: pemasukan vs pengeluaran 6 bulan terakhir (tap kolom untuk detail bulan)
 
 ## 🛠️ Tech Stack
 
@@ -119,7 +123,7 @@ Tambahkan secret berikut di **Settings → Secrets and variables → Actions** s
 
 > **Syarat cloud berfungsi:** `google-services.json` harus milik Firebase project Anda, Auth + Firestore diaktifkan, dan `firestore.rules` di-deploy. Tanpa itu, akun bisa dibuat tetapi data tidak tersinkron (lihat bagian Keamanan & Privasi).
 
-> **Catatan teknis (conflict resolution):** sinkronisasi memakai *last-write-wins* tanpa metadata timestamp per baris. Mengedit data yang sama secara bersamaan di dua HP menghasilkan nilai dari penulis terakhir. Untuk data personal ini cukup aman; bila ingin conflict-free, langkah berikutnya adalah menambah kolom `updatedAt` + merge per-field.
+> **Catatan teknis (conflict resolution):** setiap baris kini membawa timestamp `updatedAt`. Sinkronisasi memakai *last-write-wins* deterministik: edit yang lebih lama tidak akan pernah menimpa edit yang lebih baru (baik saat sinkronisasi penuh maupun lewat listener real-time). Catatan: aturan transaksi berulang & budget bersifat per-perangkat (yang tersinkron ke cloud adalah transaksi hasil generasinya); timestamp memakai jam perangkat, jadi idealnya jam kedua HP akurat.
 
 ## 🧪 Testing
 
