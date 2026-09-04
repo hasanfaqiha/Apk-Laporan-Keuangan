@@ -88,14 +88,6 @@ fun LockScreen(
         }
     }
 
-    fun appendDigit(digit: String) {
-        if (entered.length >= PIN_LENGTH) return
-        wrongMessage = null
-        val next = entered + digit
-        entered = next
-        if (next.length == PIN_LENGTH) submitPin(next)
-    }
-
     fun submitPin(pin: String) {
         if (AppLock.verify(context, pin)) {
             wrongMessage = null
@@ -112,16 +104,21 @@ fun LockScreen(
         }
     }
 
+    fun appendDigit(digit: String) {
+        if (entered.length >= PIN_LENGTH) return
+        wrongMessage = null
+        val next = entered + digit
+        entered = next
+        if (next.length == PIN_LENGTH) submitPin(next)
+    }
+
     fun launchBiometrics() {
         wrongMessage = null
         try {
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Buka KeuanganKu")
                 .setSubtitle("Konfirmasi identitas untuk membuka aplikasi")
-                .setAllowedAuthenticators(
-                    BiometricPrompt.Authenticators.BIOMETRIC_STRONG or
-                        BiometricPrompt.Authenticators.DEVICE_CREDENTIAL
-                )
+                .setNegativeButtonText("Batal")
                 .build()
             biometricPrompt?.authenticate(promptInfo)
         } catch (e: Exception) {

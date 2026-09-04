@@ -26,8 +26,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Calendar
 
 class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() {
@@ -534,19 +534,15 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
     }
 
     /** Runs a full bidirectional sync in the background and reports whether it succeeded. */
-    private suspend fun runSilentFullSync(): Boolean =
-        suspendCancellableCoroutine(
-            onCancellation = { _, _ -> }
-        ) { cont ->
-            if (!syncManager.isLoggedIn || syncManager.isFullSyncRunning) {
-                if (cont.isActive) cont.resume(false)
-                return@suspendCancellableCoroutine
-            }
-            syncManager.performFullSync(
-                onSuccess = { if (cont.isActive) cont.resume(true) },
-                onFailure = { if (cont.isActive) cont.resume(false) }
-            )
-        }
+    private suspend fun runSilentFullSync(): Boolean {
+        if (!syncManager.isLoggedIn || syncManager.isFullSyncRunning) return false
+        val deferred = CompletableDeferred<Boolean>()
+        syncManager.performFullSync(
+            onSuccess = { deferred.complete(true) },
+            onFailure = { deferred.complete(false) }
+        )
+        return deferred.await()
+    }
 }
 
 // Data class to wrap calculated metrics
