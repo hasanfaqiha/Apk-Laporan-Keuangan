@@ -535,7 +535,9 @@ class FinanceViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     /** Runs a full bidirectional sync in the background and reports whether it succeeded. */
     private suspend fun runSilentFullSync(): Boolean =
-        suspendCancellableCoroutine { cont ->
+        suspendCancellableCoroutine(
+            onCancellation = { _, _ -> }
+        ) { cont ->
             if (!syncManager.isLoggedIn || syncManager.isFullSyncRunning) {
                 if (cont.isActive) cont.resume(false)
                 return@suspendCancellableCoroutine
