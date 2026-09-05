@@ -82,6 +82,8 @@ import com.example.ui.theme.PremiumSecondary
 import com.example.ui.theme.PremiumGradientStart
 import com.example.ui.theme.PremiumGradientMid
 import com.example.ui.theme.PremiumGradientEnd
+import com.example.ui.theme.PremiumDarkGradientStart
+import com.example.ui.theme.PremiumDarkGradientEnd
 import com.example.ui.theme.PremiumGreen
 import com.example.ui.theme.PremiumRed
 import com.example.ui.theme.PremiumAmber
@@ -298,7 +300,7 @@ fun GradientHeaderSection(
                         Text(
                             text = "Good Day!",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.7),
+                            color = Color.White.copy(alpha = 0.7f),
                             fontWeight = FontWeight.Medium
                         )
                         Text(
@@ -310,8 +312,8 @@ fun GradientHeaderSection(
                     }
                     Surface(
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.15),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.3)),
+                        color = Color.White.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.3f)),
                         modifier = Modifier
                             .size(48.dp)
                             .clickable { onNavigateToSettings() }
@@ -340,7 +342,7 @@ fun GradientHeaderSection(
                             Text(
                                 text = "Account Balance",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.7),
+color = Color.White.copy(alpha = 0.7f),
                                 fontWeight = FontWeight.Medium
                             )
                             Icon(
@@ -365,7 +367,7 @@ fun GradientHeaderSection(
                         Text(
                             text = "Account no: **** **** 3569",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.5)
+                            color = Color.White.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -379,11 +381,13 @@ fun GradientHeaderSection(
                 ) {
                     GradientActionButton(
                         text = "↙ Add Money",
-                        onClick = { onQuickAddClick("INCOME") }
+                        onClick = { onQuickAddClick("INCOME") },
+                        modifier = Modifier.weight(1f)
                     )
                     GradientActionButton(
                         text = "↗ Send Money",
-                        onClick = { onQuickAddClick("EXPENSE") }
+                        onClick = { onQuickAddClick("EXPENSE") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -401,12 +405,11 @@ fun GradientActionButton(
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isDark) Color.White.copy(alpha = 0.15) else Color.White.copy(alpha = 0.12),
+            containerColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.12f),
             contentColor = Color.White
         ),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
-            .weight(1f)
             .height(48.dp)
             .fillMaxWidth(),
         border = androidx.compose.foundation.BorderStroke(
@@ -430,10 +433,10 @@ fun UpgradeBanner(
     val isDark = MaterialTheme.colorScheme.background.red < 0.2f
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .shadow(4.dp, shape = RoundedCornerShape(20.dp)),
+            .fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -588,7 +591,7 @@ fun RecentTransactionsSection(
     Column(
         modifier = modifier
             .fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Section Header
         Row(
@@ -645,7 +648,9 @@ fun RecentTransactionsSection(
                 )
             }
         } else {
-            Column(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 transactions.forEach { trans ->
                     TransactionListItem(
                         transaction = trans,
@@ -755,10 +760,10 @@ fun TransactionListItem(
     }
 
     val (arrowIcon, arrowColor, arrowBg) = when {
-        isExpense -> (Icons.Default.ArrowDownward, PremiumRed, PremiumRedLight)
-        transaction.type == "INCOME" -> (Icons.Default.ArrowUpward, PremiumGreen, PremiumGreenLight)
-        transaction.type == "WITHDRAWAL" -> (Icons.Default.ArrowDownward, PremiumAmber, PremiumAmberLight)
-        else -> (Icons.Default.ArrowUpward, PremiumBlue, PremiumBlueLight)
+        isExpense -> Triple(Icons.Default.ArrowDownward, PremiumRed, PremiumRedLight)
+        transaction.type == "INCOME" -> Triple(Icons.Default.ArrowUpward, PremiumGreen, PremiumGreenLight)
+        transaction.type == "WITHDRAWAL" -> Triple(Icons.Default.ArrowDownward, PremiumAmber, PremiumAmberLight)
+        else -> Triple(Icons.Default.ArrowUpward, PremiumBlue, PremiumBlueLight)
     }
 
     Card(
@@ -851,53 +856,8 @@ fun TransactionListItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
-    }
 }
-
-@Composable
-fun EmptyState(
-    icon: @Composable () -> Unit,
-    title: String,
-    description: String,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-            modifier = Modifier.size(72.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.padding(16.dp)
-            ) {
-                icon()
-            }
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
     }
 }
 
@@ -1145,8 +1105,4 @@ fun BillAlertCard(
             }
         }
     }
-}
-
-fun formatDate(millis: Long): String {
-    return java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date(millis))
 }
