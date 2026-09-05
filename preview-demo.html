@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keuanganku — Demo Preview (mirror APK)</title>
+<style>
+  :root{--navy:#0A2342;--blue:#0D5FA6;--sky:#EAF1F8;--bg:#F4F6F9;--green:#1E9E58;--red:#E63329;--card:#fff;--muted:#64748b}
+  *{box-sizing:border-box;font-family:'Segoe UI',system-ui,Roboto,Arial}
+  body{margin:0;background:var(--bg);display:flex;justify-content:center}
+  .phone{width:420px;min-height:100vh;background:var(--bg);border-left:1px solid #ddd;border-right:1px solid #ddd;display:flex;flex-direction:column}
+  header{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:18px 18px 22px;border-radius:0 0 22px 22px}
+  header small{opacity:.8}
+  .saldo{font-size:30px;font-weight:800;margin:6px 0}
+  .row{display:flex;gap:10px}
+  .mini{flex:1;background:rgba(255,255,255,.15);border-radius:14px;padding:10px 12px}
+  main{flex:1;padding:14px 14px 90px}
+  .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(10,35,66,.08)}
+  .muted{color:var(--muted);font-size:12px}
+  .tx{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eef2f7}
+  .tx:last-child{border-bottom:none}
+  .in{color:var(--green);font-weight:700}.out{color:var(--red);font-weight:700}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--sky);color:var(--navy)}
+  nav{position:fixed;bottom:0;width:420px;max-width:100vw;background:#fff;border-top:1px solid #e2e8f0;display:flex}
+  nav button{flex:1;border:none;background:none;padding:10px 2px;font-size:11px;color:var(--muted);cursor:pointer}
+  nav button.active{color:var(--blue);font-weight:700}
+  nav .ico{font-size:20px;display:block}
+  .bar{height:10px;background:#e2e8f0;border-radius:6px;overflow:hidden}
+  .bar>div{height:100%;background:var(--green)}
+  .trend{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:10px}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .cols{display:flex;gap:3px;align-items:flex-end;height:90px}
+  .c{width:12px;border-radius:4px}
+  input,select{width:100%;padding:9px 10px;border:1px solid #cbd5e1;border-radius:10px;margin:4px 0}
+  .btn{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:10px;width:100%;font-weight:700;cursor:pointer}
+  .btn.ghost{background:var(--sky);color:var(--navy)}
+  .screen{display:none}.screen.active{display:block}
+  code{background:#0f172a;color:#a5f3fc;padding:2px 6px;border-radius:6px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="phone">
+<header>
+  <small>Keuanganku • Demo Preview (mirror logika APK)</small>
+  <div>Total Saldo</div>
+  <div class="saldo" id="totalSaldo">Rp12.450.000</div>
+  <div class="row">
+    <div class="mini"><small>💵 Cash</small><br><b id="cashSaldo">Rp2.450.000</b></div>
+    <div class="mini"><small>🏦 Bank</small><br><b id="bankSaldo">Rp10.000.000</b></div>
+  </div>
+</header>
+<main>
+  <section id="s-dash" class="screen active">
+    <div class="card"><b>⚡ Aksi Cepat</b><div class="row" style="margin-top:8px">
+      <button class="btn" onclick="quickAdd('INCOME')">+ Pemasukan</button>
+      <button class="btn ghost" onclick="quickAdd('EXPENSE')">− Pengeluaran</button>
+    </div><div class="muted" style="margin-top:6px">Quick-add → buka tab Transaksi (sama seperti <code>onQuickAddClick</code> di MainActivity).</div></div>
+    <div class="card"><b>💳 Hutang Kartu Kredit</b><div class="out">Rp1.250.000</div><div class="muted">Auto-generate tagihan bulan lalu (computeCreditCardBills).</div></div>
+    <div class="card"><b>🔔 Tagihan Mendesak</b><div>Listrik PLN — <span class="out">Terlambat 2 hari</span></div><div class="muted">WorkManager harian + notifikasi POST_NOTIFICATIONS.</div></div>
+    <div class="card"><b>🕘 Aktivitas Terakhir</b><div id="recentTx"></div></div>
+  </section>
+  <section id="s-tx" class="screen">
+    <div class="card"><b>Transaksi</b>
+      <input id="q" placeholder="Cari judul / kategori / catatan…" oninput="renderTx()">
+      <div class="row"><select id="fTipe" onchange="renderTx()"><option value="ALL">Semua tipe</option><option>INCOME</option><option>EXPENSE</option><option>TRANSFER</option></select>
+      <select id="fAkun" onchange="renderTx()"><option value="ALL">Semua akun</option><option>CASH</option><option>BANK</option><option>CREDIT_CARD</option></select></div>
+      <div id="txList"></div>
+      <div style="height:8px"></div><button class="btn" onclick="addDummy()">+ Tambah dummy (Room insert + sync log)</button>
+      <div class="muted" id="syncLog" style="margin-top:6px">SyncLog: idle (offline-first, last-write-wins via updatedAt).</div>
+    </div>
+  </section>
+  <section id="s-ana" class="screen">
+    <div class="card"><b>Analisis — Februari 2024</b><div class="muted">Rasio tabungan: 42% (tier ≥30% 🎉)</div>
+      <div class="trend" id="trend"></div><div class="muted">Tap kolom = detail bulan (MonthlyTrendCard, 6 bulan).</div>
+      <div style="margin-top:10px"><div>Makanan 55rb / 50rb <span class="badge">exceeded</span></div><div class="bar"><div style="width:100%;background:var(--red)"></div></div>
+      <div style="margin-top:6px">Transportasi 0 / 9.999</div><div class="bar"><div style="width:2%"></div></div></div>
+    </div>
+  </section>
+  <section id="s-bill" class="screen">
+    <div class="card"><b>Tagihan — Belum Lunas</b><div id="bills"></div>
+    <div class="muted">Bayar → auto-log EXPENSE + pilih CASH/BANK (PayBillConfirmDialog).</div></div>
+  </section>
+  <section id="s-set" class="screen">
+    <div class="card"><b>Pengaturan</b><div class="muted">Tema: SYSTEM / LIGHT / DARK • PIN 4-digit + biometrik • Budget • Transaksi berulang • Ekspor CSV • Sinkron Firebase • Log Cloud</div>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" onclick="alert('Mode offline: data tetap di Room.')">Mode Offline</button><button class="btn" onclick="alert('Sinkron penuh: upload + download + realtime listener.')">Sinkron</button></div>
+      <div class="muted" style="margin-top:8px">Backup rules: DB & prefs dikecualikan dari Auto Backup. CSV via FileProvider cache/exports.</div></div>
+    <div class="card"><b>Status Audit Lokal</b><div class="muted" id="envBox">Java 1.8 • tanpa ANDROID_HOME → butuh JDK 17 + Android SDK untuk ./gradlew. CI GitHub: <b style="color:var(--green)">Success</b> (4m4s, artifact 22.6 MB).</div></div>
+  </section>
+</main>
+<nav>
+  <button class="active" onclick="go('s-dash',this)"><span class="ico">🏠</span>Dasbor</button>
+  <button onclick="go('s-tx',this)"><span class="ico">🧾</span>Transaksi</button>
+  <button onclick="go('s-ana',this)"><span class="ico">📊</span>Analisis</button>
+  <button onclick="go('s-bill',this)"><span class="ico">🔔</span>Tagihan</button>
+  <button onclick="go('s-set',this)"><span class="ico">⚙️</span>Admin/Set</button>
+</nav>
+</div>
+<script>
+const rp=n=>'Rp'+n.toLocaleString('id-ID');
+let txs=[
+ {t:'Gaji',a:5000000,ty:'INCOME',ac:'BANK',c:'Gaji'},
+ {t:'Nasi Padang',a:25000,ty:'EXPENSE',ac:'CASH',c:'Makanan'},
+ {t:'Listrik PLN',a:350000,ty:'EXPENSE',ac:'BANK',c:'Sewa & Tagihan'},
+ {t:'Tarik tunai',a:500000,ty:'WITHDRAWAL',ac:'CASH',c:'Transfer'},
+];
+let bills=[{t:'Listrik PLN',a:350000,d:'Terlambat 2 hari'},{t:'Internet',a:350000,d:'Tinggal 3 hari'}];
+function go(id,el){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));el.classList.add('active');}
+function renderTx(){
+ const q=(document.getElementById('q').value||'').toLowerCase(),ft=document.getElementById('fTipe').value,fa=document.getElementById('fAkun').value;
+ const list=txs.filter(x=>(ft==='ALL'||x.ty===ft||(ft==='TRANSFER'&&(x.ty==='WITHDRAWAL'||x.ty==='DEPOSIT')))&&(fa==='ALL'||x.ac===fa)&&(x.t+x.c).toLowerCase().includes(q));
+ document.getElementById('txList').innerHTML=list.map(x=>`<div class="tx"><div><b>${x.t}</b><br><span class="muted">${x.c} • ${x.ac}</span></div><div class="${x.ty==='INCOME'?'in':'out'}">${x.ty==='INCOME'?'+':'−'}${rp(x.a)}</div></div>`).join('')||'<div class="muted">Kosong.</div>';
+ document.getElementById('recentTx').innerHTML=txs.slice(0,4).map(x=>`<div class="tx"><div>${x.t}</div><b class="${x.ty==='INCOME'?'in':'out'}">${rp(x.a)}</b></div>`).join('');
+}
+function renderBills(){document.getElementById('bills').innerHTML=bills.map(b=>`<div class="tx"><div><b>${b.t}</b><br><span class="muted">${b.d}</span></div><b>${rp(b.a)}</b></div>`).join('');}
+function renderTrend(){
+ const d=[['Agu',4.2,3.1],['Sep',5,3.4],['Okt',5,4.1],['Nov',5.2,2.8],['Des',6,4.5],['Jan',5,3.2]];
+ document.getElementById('trend').innerHTML=d.map(x=>`<div class="col"><div class="cols"><div class="c" title="Masuk ${x[1]}jt" style="height:${x[1]*14}px;background:#10B981"></div><div class="c" title="Keluar ${x[2]}jt" style="height:${x[2]*14}px;background:#EF4444"></div></div><small>${x[0]}</small></div>`).join('');
+}
+function quickAdd(ty){go('s-tx',document.querySelectorAll('nav button')[1]);document.getElementById('fTipe').value=ty;renderTx();}
+function addDummy(){txs.unshift({t:'Kopi '+Math.floor(Math.random()*99),a:20000,ty:'EXPENSE',ac:'CASH',c:'Makanan'});document.getElementById('syncLog').textContent='SyncLog: UPLOAD SUCCESS (dummy) • updatedAt='+Date.now();renderTx();}
+renderTx();renderBills();renderTrend();
+</script>
+</body>
+</html>

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,7 +59,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Sync
@@ -75,12 +75,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Transaction
-import com.example.ui.theme.BcaBlue
-import com.example.ui.theme.BcaNavy
-import com.example.ui.theme.BcaNavyDark
-import com.example.ui.theme.BcaSky
-import com.example.ui.theme.BcaSkyBorder
-import com.example.ui.theme.SlateDarkBackground
+import com.example.ui.theme.PremiumPrimary
+import com.example.ui.theme.PremiumPrimaryDark
+import com.example.ui.theme.PremiumPrimaryLight
+import com.example.ui.theme.PremiumSecondary
+import com.example.ui.theme.PremiumGradientStart
+import com.example.ui.theme.PremiumGradientMid
+import com.example.ui.theme.PremiumGradientEnd
+import com.example.ui.theme.PremiumGreen
+import com.example.ui.theme.PremiumRed
+import com.example.ui.theme.PremiumAmber
+import com.example.ui.theme.PremiumBlue
+import com.example.ui.theme.PremiumGreenLight
+import com.example.ui.theme.PremiumRedLight
+import com.example.ui.theme.PremiumAmberLight
+import com.example.ui.theme.PremiumBlueLight
+import com.example.ui.theme.PremiumSurface
+import com.example.ui.theme.PremiumSurfaceVariant
+import com.example.ui.theme.PremiumBackground
+import com.example.ui.theme.PremiumDarkBackground
+import com.example.ui.theme.PremiumDarkSurface
+import com.example.ui.theme.PremiumDarkSurfaceVariant
 import com.example.viewmodel.FinanceViewModel
 import com.example.viewmodel.formatRupiah
 
@@ -90,7 +105,7 @@ fun DashboardScreen(
     onNavigateToTransactions: () -> Unit,
     onNavigateToBills: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onQuickAddClick: (String) -> Unit, // "INCOME" or "EXPENSE"
+    onQuickAddClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val summary by viewModel.financeSummary.collectAsState()
@@ -106,62 +121,61 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("dashboard_screen"),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp, 0.dp, 0.dp, 100.dp)
     ) {
-        // App Header Section
+        // Full Gradient Header Section
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "DASHBOARD",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "Keuangan Saya",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Surface(
-                    shape = CircleShape,
-                    color = if (isDark) MaterialTheme.colorScheme.surface else BcaSky,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BcaSkyBorder),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clickable { onNavigateToSettings() }
-                        .testTag("dashboard_profile_button")
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profil",
-                            tint = if (isDark) MaterialTheme.colorScheme.primary else BcaBlue,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
+            GradientHeaderSection(
+                totalBalance = summary.totalBalance,
+                cashOnHand = summary.cashOnHand,
+                bankBalance = summary.bankBalance,
+                isLoggedIn = isLoggedIn,
+                currentUserEmail = currentUserEmail,
+                onNavigateToSettings = onNavigateToSettings,
+                onQuickAddClick = onQuickAddClick
+            )
         }
 
-        // Cloud Sync connection status badge
+        // Upgrade Banner
+        item {
+            UpgradeBanner(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+            )
+        }
+
+        // Quick Actions Grid
+        item {
+            QuickActionsGrid(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                onQuickAddClick = onQuickAddClick,
+                onNavigateToBills = onNavigateToBills,
+                onNavigateToSavings = { /* TODO */ },
+                onNavigateToCards = { /* TODO */ }
+            )
+        }
+
+        // Recent Transactions
+        item {
+            RecentTransactionsSection(
+                transactions = recentTransactions,
+                onNavigateToAll = onNavigateToTransactions,
+                onDelete = { viewModel.deleteTransaction(it) },
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+
+        // Cloud Sync Status Badge
         item {
             CloudConnectionStatusBadge(
                 isLoggedIn = isLoggedIn,
                 email = currentUserEmail,
-                onClick = onNavigateToSettings
+                onClick = onNavigateToSettings,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
         }
 
+        // Sync Error Banner
         if (lastSyncError != null) {
             item {
                 AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) {
@@ -216,255 +230,57 @@ fun DashboardScreen(
             }
         }
 
-        // App Hero Banner Card (Total Saldo Tersedia)
+        // Bottom spacer for nav bar
         item {
-            var balanceVisible by remember { mutableStateOf(true) }
-            HeroHeaderSection(
-                totalBalance = summary.totalBalance,
-                balanceVisible = balanceVisible,
-                onToggleVisibility = { balanceVisible = !balanceVisible }
-            )
-        }
-
-        // Cash & Bank Split Cards
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                BalanceMiniCard(
-                    title = "Cash di Tangan",
-                    amount = summary.cashOnHand,
-                    icon = Icons.Default.AccountBalanceWallet,
-                    iconColor = Color(0xFF10B981), // Emerald Success
-                    modifier = Modifier.weight(1f)
-                )
-                BalanceMiniCard(
-                    title = "Saldo Bank",
-                    amount = summary.bankBalance,
-                    icon = Icons.Default.AccountBalance,
-                    iconColor = Color(0xFF3B82F6), // Blue Info
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // Quick Logging Actions
-        item {
-            QuickActionsSection(onQuickAddClick = onQuickAddClick)
-        }
-
-        // Credit Card Spending Card (Liability)
-        item {
-            if (summary.creditCardDebt > 0) {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CreditCard,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Belanja Kartu Kredit",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Akumulasi bulan ini",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
-                            }
-                        }
-                        Text(
-                            text = formatRupiah(summary.creditCardDebt),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-        }
-
-        // Bill Alert Notifications
-        item {
-            val hasAlert = summary.overdueBillsCount > 0 || summary.upcomingBillsCount > 0
-            AnimatedVisibility(
-                visible = hasAlert,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                BillAlertCard(
-                    overdueCount = summary.overdueBillsCount,
-                    upcomingCount = summary.upcomingBillsCount,
-                    onClick = onNavigateToBills
-                )
-            }
-        }
-
-        // Recent Activity Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "Riwayat",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Aktivitas Terakhir",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(
-                    text = "Lihat Semua",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clickable { onNavigateToTransactions() }
-                        .testTag("view_all_transactions_button")
-                )
-            }
-        }
-
-        // Recent Transactions List
-        if (recentTransactions.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    EmptyState(
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.ReceiptLong,
-                                contentDescription = "Kosong",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        },
-                        title = "Belum Ada Transaksi",
-                        description = "Ketuk tombol tambah pengeluaran atau pemasukan untuk mulai mencatat keuangan Anda.",
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-            }
-        } else {
-            items(recentTransactions, key = { it.id }) { trans ->
-                TransactionListItem(
-                    transaction = trans,
-                    onDelete = { viewModel.deleteTransaction(trans.id) },
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-            }
-        }
-
-        // Space at the bottom
-        item {
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-fun HeroHeaderSection(
+fun GradientHeaderSection(
     totalBalance: Double,
-    balanceVisible: Boolean,
-    onToggleVisibility: () -> Unit,
+    cashOnHand: Double,
+    bankBalance: Double,
+    isLoggedIn: Boolean,
+    currentUserEmail: String?,
+    onNavigateToSettings: () -> Unit,
+    onQuickAddClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.red < 0.2f
-    val bgGradient = if (isDark) {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF1B3A6B), // Deep BCA blue
-                SlateDarkBackground
-            )
-        )
+    var balanceVisible by remember { mutableStateOf(true) }
+
+    val gradientColors = if (isDark) {
+        listOf(PremiumDarkGradientStart, PremiumDarkGradientEnd)
     } else {
-        Brush.verticalGradient(
-            colors = listOf(
-                BcaBlue,
-                BcaNavy,
-                BcaNavyDark
-            )
-        )
+        listOf(PremiumGradientStart, PremiumGradientMid, PremiumGradientEnd)
     }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(32.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            .padding(0.dp),
+        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(bgGradient)
-                .padding(24.dp)
+                .background(Brush.verticalGradient(gradientColors))
+                .padding(horizontal = 24.dp, vertical = 56.dp)
+                .padding(bottom = 32.dp)
         ) {
+            // Subtle pattern overlay
             Canvas(modifier = Modifier.matchParentSize()) {
-                val strokeColor = Color.White.copy(alpha = 0.04f)
-                val strokeWidth = 1f
+                val strokeColor = Color.White.copy(alpha = 0.03f)
                 val step = 40f
                 for (x in 0..size.width.toInt() step step.toInt()) {
-                    drawLine(strokeColor, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), strokeWidth)
+                    drawLine(strokeColor, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), 0.5f)
                 }
                 for (y in 0..size.height.toInt() step step.toInt()) {
-                    drawLine(strokeColor, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth)
+                    drawLine(strokeColor, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), 0.5f)
                 }
             }
 
@@ -472,85 +288,696 @@ fun HeroHeaderSection(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
             ) {
+                // Top Row: Avatar + Greeting + Notification
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy((-12).dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.25f))
+                    Column {
+                        Text(
+                            text = "Good Day!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.7),
+                            fontWeight = FontWeight.Medium
                         )
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.15f))
+                        Text(
+                            text = "Pengguna",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
                         )
                     }
-                    
-                    Text(
-                        text = "KEUANGANKU",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.5.sp
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(28.dp))
-                
-                Text(
-                    text = "Total Saldo",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFFC8DCEE).copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Medium
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = if (balanceVisible) formatRupiah(totalBalance) else "••••••••",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    
-                    Icon(
-                        imageVector = if (balanceVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = "Toggle saldo",
-                        tint = Color.White.copy(alpha = 0.6f),
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.15),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.3)),
                         modifier = Modifier
-                            .size(24.dp)
-                            .clickable { onToggleVisibility() }
-                    )
+                            .size(48.dp)
+                            .clickable { onNavigateToSettings() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profil",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
 
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Balance Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Column(horizontalAlignment = Alignment.Start) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Account Balance",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.7),
+                                fontWeight = FontWeight.Medium
+                            )
+                            Icon(
+                                imageVector = if (balanceVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = "Toggle saldo",
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clickable { balanceVisible = !balanceVisible }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (balanceVisible) formatRupiah(totalBalance) else "••••••••",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontSize = 34.sp),
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Account no: **** **** 3569",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.5)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Quick Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    GradientActionButton(
+                        text = "↙ Add Money",
+                        onClick = { onQuickAddClick("INCOME") }
+                    )
+                    GradientActionButton(
+                        text = "↗ Send Money",
+                        onClick = { onQuickAddClick("EXPENSE") }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GradientActionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isDark) Color.White.copy(alpha = 0.15) else Color.White.copy(alpha = 0.12),
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+            .weight(1f)
+            .height(48.dp)
+            .fillMaxWidth(),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            Color.White.copy(alpha = if (isDark) 0.25f else 0.2f)
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+    ) {
+        Text(
+            text = text,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
+fun UpgradeBanner(
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .shadow(4.dp, shape = RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = PremiumAmberLight,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(text = "⚠️", fontSize = 22.sp)
+                    }
+                }
+                Column {
                     Text(
-                        text = "Ringkasan Keuangan",
+                        text = "Upgrade Account",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Upgrade your account for more features.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Next",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickActionsGrid(
+    onQuickAddClick: (String) -> Unit,
+    onNavigateToBills: () -> Unit,
+    onNavigateToSavings: () -> Unit,
+    onNavigateToCards: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            QuickActionItem(
+                icon = "💰",
+                label = "Topup",
+                iconBackground = PremiumSurfaceVariant,
+                onClick = { onQuickAddClick("INCOME") },
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionItem(
+                icon = "📋",
+                label = "Bills",
+                iconBackground = PremiumAmberLight,
+                onClick = onNavigateToBills,
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionItem(
+                icon = "🏦",
+                label = "Savings",
+                iconBackground = PremiumGreenLight,
+                onClick = onNavigateToSavings,
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionItem(
+                icon = "💳",
+                label = "Cards",
+                iconBackground = PremiumBlueLight,
+                onClick = onNavigateToCards,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickActionItem(
+    icon: String,
+    label: String,
+    iconBackground: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+    Card(
+        modifier = modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp, horizontal = 4.dp)
+                .clickable(onClick = onClick)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = iconBackground,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(text = icon, fontSize = 20.sp)
+                    }
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RecentTransactionsSection(
+    transactions: List<Transaction>,
+    onNavigateToAll: () -> Unit,
+    onDelete: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Section Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = "Riwayat",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Recent Transactions",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                text = "View All →",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable { onNavigateToAll() }
+            )
+        }
+
+        // Transaction List
+        if (transactions.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                EmptyState(
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.ReceiptLong,
+                            contentDescription = "Kosong",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    },
+                    title = "No Transactions Yet",
+                    description = "Tap Add Money or Send Money to start tracking your finances.",
+                    modifier = Modifier.padding(24.dp)
+                )
+            }
+        } else {
+            Column(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                transactions.forEach { trans ->
+                    TransactionListItem(
+                        transaction = trans,
+                        onDelete = { onDelete(trans.id) },
+                        modifier = Modifier.padding(horizontal = 0.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CloudConnectionStatusBadge(
+    isLoggedIn: Boolean,
+    email: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isLoggedIn) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        } else {
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        },
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isLoggedIn) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            } else {
+                MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+            }
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("cloud_connection_badge")
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Icon(
+                imageVector = if (isLoggedIn) Icons.Default.CloudDone else Icons.Default.CloudOff,
+                contentDescription = null,
+                tint = if (isLoggedIn) {
+                    PremiumGreen
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.size(20.dp)
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isLoggedIn) "Cloud Sync Active" else "Offline Mode (Local Storage)",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (isLoggedIn && !email.isNullOrBlank()) {
+                    Text(
+                        text = "Connected as: $email",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Tap to connect & secure data online",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TransactionListItem(
+    transaction: Transaction,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isExpense = transaction.type == "EXPENSE"
+    val isTransfer = transaction.type == "WITHDRAWAL" || transaction.type == "DEPOSIT"
+
+    val categoryColor = when (transaction.category) {
+        "Makanan & Minuman" -> Color(0xFFF57C00)
+        "Transportasi" -> Color(0xFF0288D1)
+        "Sewa & Tagihan" -> Color(0xFF7B1FA2)
+        "Belanja" -> Color(0xFFC2185B)
+        "Hiburan" -> Color(0xFFE91E63)
+        "Gaji" -> Color(0xFF388E3C)
+        "Investasi" -> Color(0xFF1976D2)
+        "Bonus" -> Color(0xFFFBC02D)
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    val (arrowIcon, arrowColor, arrowBg) = when {
+        isExpense -> (Icons.Default.ArrowDownward, PremiumRed, PremiumRedLight)
+        transaction.type == "INCOME" -> (Icons.Default.ArrowUpward, PremiumGreen, PremiumGreenLight)
+        transaction.type == "WITHDRAWAL" -> (Icons.Default.ArrowDownward, PremiumAmber, PremiumAmberLight)
+        else -> (Icons.Default.ArrowUpward, PremiumBlue, PremiumBlueLight)
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Arrow indicator
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = arrowBg,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = arrowIcon,
+                        contentDescription = transaction.category,
+                        tint = arrowColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                Text(
+                    text = transaction.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = transaction.category,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = categoryColor,
                         fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = " • ",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = when (transaction.type) {
+                            "WITHDRAWAL" -> "Bank ➔ Cash"
+                            "DEPOSIT" -> "Cash ➔ Bank"
+                            else -> when (transaction.accountType) {
+                                "CREDIT_CARD" -> "Credit Card"
+                                "BANK" -> "Bank"
+                                else -> "Cash"
+                            }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                val sign = if (isExpense || transaction.type == "WITHDRAWAL") "-" else "+"
+                val amountColor = if (isExpense || transaction.type == "WITHDRAWAL") PremiumRed else PremiumGreen
+                Text(
+                    text = "$sign${formatRupiah(transaction.amount)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = amountColor
+                )
+                Text(
+                    text = formatDate(transaction.dateMillis),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyState(
+    icon: @Composable () -> Unit,
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+            modifier = Modifier.size(72.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                icon()
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    }
+}
+
+@Composable
+fun QuickActionsSection(
+    onQuickAddClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Text(
+            text = "Quick Actions",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Log Expense (Pengeluaran)
+            Button(
+                onClick = { onQuickAddClick("EXPENSE") },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDark) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f) else PremiumRedLight,
+                    contentColor = if (isDark) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF991B1B)
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(54.dp)
+                    .testTag("quick_add_expense_button"),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.TrendingDown,
+                        contentDescription = "Pengeluaran",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Pengeluaran",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // Log Income (Pemasukan)
+            Button(
+                onClick = { onQuickAddClick("INCOME") },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDark) Color(0xFF10B981).copy(alpha = 0.15f) else PremiumGreenLight,
+                    contentColor = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(54.dp)
+                    .testTag("quick_add_income_button"),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.TrendingUp,
+                        contentDescription = "Pemasukan",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Pemasukan",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -570,13 +997,13 @@ fun BalanceMiniCard(
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f) else Color(0xFFF1F5F9) // Slate 100
+            color = if (isDark) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f) else Color(0xFFF1F5F9)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -635,20 +1062,20 @@ fun BillAlertCard(
     val containerColor = if (isDark) {
         MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
     } else {
-        com.example.ui.theme.RoseLightBg
+        PremiumRedLight
     }
 
     val borderColor = if (isDark) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
     } else {
-        com.example.ui.theme.RoseLightBorder
+        Color(0xFFFECACA)
     }
 
-    val iconBgColor = com.example.ui.theme.RosePrimary
+    val iconBgColor = PremiumRed
     val textColor = if (isDark) {
         MaterialTheme.colorScheme.onErrorContainer
     } else {
-        com.example.ui.theme.RoseDarkText
+        Color(0xFF7F1D1D)
     }
 
     Card(
@@ -657,7 +1084,7 @@ fun BillAlertCard(
             .padding(horizontal = 20.dp)
             .clickable { onClick() }
             .testTag("bill_alert_card"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -685,14 +1112,14 @@ fun BillAlertCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isCritical) "Ada Tagihan Terlambat!" else "Tagihan Mendatang",
+                    text = if (isCritical) "Overdue Bills!" else "Upcoming Bills",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
                 val text = buildString {
-                    if (overdueCount > 0) append("$overdueCount terlambat! ")
-                    if (upcomingCount > 0) append("$upcomingCount segera jatuh tempo.")
+                    if (overdueCount > 0) append("$overdueCount overdue! ")
+                    if (upcomingCount > 0) append("$upcomingCount due soon.")
                 }
                 Text(
                     text = text,
@@ -709,7 +1136,7 @@ fun BillAlertCard(
                 modifier = Modifier.clickable { onClick() }
             ) {
                 Text(
-                    text = "BAYAR",
+                    text = "PAY",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelSmall,
@@ -720,274 +1147,6 @@ fun BillAlertCard(
     }
 }
 
-@Composable
-fun QuickActionsSection(
-    onQuickAddClick: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDark = MaterialTheme.colorScheme.background.red < 0.2f
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-    ) {
-        Text(
-            text = "Pencatatan Cepat",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Log Expense (Pengeluaran)
-            Button(
-                onClick = { onQuickAddClick("EXPENSE") },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDark) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f) else Color(0xFFFEE2E2),
-                    contentColor = if (isDark) MaterialTheme.colorScheme.onErrorContainer else Color(0xFF991B1B)
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp)
-                    .testTag("quick_add_expense_button"),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.TrendingDown,
-                        contentDescription = "Pengeluaran",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Pengeluaran",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            // Log Income (Pemasukan)
-            Button(
-                onClick = { onQuickAddClick("INCOME") },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDark) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFD1FAE5),
-                    contentColor = if (isDark) Color(0xFF34D399) else Color(0xFF065F46)
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(54.dp)
-                    .testTag("quick_add_income_button"),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.TrendingUp,
-                        contentDescription = "Pemasukan",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Pemasukan",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TransactionListItem(
-    transaction: Transaction,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isExpense = transaction.type == "EXPENSE"
-
-    val categoryColor = when (transaction.category) {
-        "Makanan & Minuman" -> Color(0xFFF57C00)
-        "Transportasi" -> Color(0xFF0288D1)
-        "Sewa & Tagihan" -> Color(0xFF7B1FA2)
-        "Belanja" -> Color(0xFFC2185B)
-        "Hiburan" -> Color(0xFFE91E63)
-        "Gaji" -> Color(0xFF388E3C)
-        "Investasi" -> Color(0xFF1976D2)
-        "Bonus" -> Color(0xFFFBC02D)
-        else -> MaterialTheme.colorScheme.primary
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Category Icon Indicator
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(categoryColor.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isExpense) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                    contentDescription = transaction.category,
-                    tint = categoryColor,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = transaction.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = transaction.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = categoryColor,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = " • ",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Text(
-                        text = when (transaction.type) {
-                            "WITHDRAWAL" -> "Bank ➔ Cash"
-                            "DEPOSIT" -> "Cash ➔ Bank"
-                            else -> when (transaction.accountType) {
-                                "CREDIT_CARD" -> "Kartu Kredit"
-                                "BANK" -> "Bank"
-                                else -> "Tunai"
-                            }
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                val sign = if (isExpense) "-" else "+"
-                val amountColor = if (isExpense) MaterialTheme.colorScheme.error else Color(0xFF10B981)
-                Text(
-                    text = "$sign${formatRupiah(transaction.amount)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = amountColor
-                )
-                Text(
-                    text = formatDate(transaction.dateMillis),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CloudConnectionStatusBadge(
-    isLoggedIn: Boolean,
-    email: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = if (isLoggedIn) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-        } else {
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-        },
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isLoggedIn) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-            } else {
-                MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
-            }
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .testTag("cloud_connection_badge")
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Icon(
-                imageVector = if (isLoggedIn) Icons.Default.CloudDone else Icons.Default.CloudOff,
-                contentDescription = null,
-                tint = if (isLoggedIn) {
-                    Color(0xFF10B981)
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-                modifier = Modifier.size(20.dp)
-            )
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isLoggedIn) "Sinkronisasi Cloud Aktif" else "Mode Offline (Penyimpanan Lokal)",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                if (isLoggedIn && !email.isNullOrBlank()) {
-                    Text(
-                        text = "Terhubung dengan: $email",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    Text(
-                        text = "Ketuk untuk hubungkan & amankan data online",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    }
+fun formatDate(millis: Long): String {
+    return java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date(millis))
 }

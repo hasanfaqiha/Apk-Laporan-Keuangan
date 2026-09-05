@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keuanganku — Premium Finance UI</title>
+<style>
+:root{
+  --bg:#F2F4F7; --card:#FFFFFF; --ink:#1A1D26; --sub:#8B92A5; --line:#E8ECF1;
+  --purple:#6366F1; --purple2:#4F46E5; --purple3:#7C3AED; --lavender:#E8E5FF; --lavbg:#F0EDFF;
+  --red:#EF4444; --redbg:#FEE2E2; --green:#10B981; --greenbg:#D1FAE5;
+  --blue:#3B82F6; --bluebg:#DBEAFE; --amber:#F59E0B; --amberbg:#FEF3C7;
+  --radius:20px; --shadow:0 2px 12px rgba(99,102,241,.12);
+}
+body.dark{ --bg:#0F1119; --card:#1A1D2E; --ink:#F0F2F5; --sub:#7A8199; --line:#262A3A;
+  --lavender:#2A2744; --lavbg:#1F1D35; --shadow:0 2px 12px rgba(0,0,0,.3); }
+*{box-sizing:border-box;margin:0;padding:0;font-family:'SF Pro Display','Segoe UI',system-ui,-apple-system,Roboto,sans-serif}
+body{background:#6366F1;display:flex;justify-content:center;min-height:100vh;padding:20px 0}
+.phone{width:390px;max-width:100vw;min-height:844px;border-radius:44px;overflow:hidden;background:var(--bg);position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.screen{display:none}.screen.on{display:block}
+
+/* ===== HEADER GRADIENT ===== */
+.hdr{background:linear-gradient(155deg,#7C6CFF 0%,#6366F1 30%,#4F46E5 70%,#4338CA 100%);color:#fff;padding:56px 24px 32px;border-radius:0 0 32px 32px;position:relative;overflow:hidden}
+.hdr::before{content:"";position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.08)}
+.hdr::after{content:"";position:absolute;bottom:-60px;left:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.05)}
+.hdr-row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FBBF24,#F59E0B);border:3px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer}
+.notif{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center}
+.notif .dot{position:absolute;top:8px;right:9px;width:8px;height:8px;background:#EF4444;border-radius:50%;border:2px solid #6366F1}
+.hdr .greet{font-size:13px;opacity:.75;margin-top:16px;position:relative;z-index:1}
+.hdr .name{font-size:20px;font-weight:800;position:relative;z-index:1}
+.bal-sec{margin-top:24px;position:relative;z-index:1}
+.bal-label{font-size:12px;opacity:.7;display:flex;align-items:center;gap:6px}
+.bal-amount{font-size:32px;font-weight:900;margin:4px 0;letter-spacing:.5px}
+.bal-acct{font-size:11px;opacity:.55}
+.eye-btn{background:none;border:none;color:rgba(255,255,255,.6);font-size:16px;cursor:pointer;margin-left:8px}
+.hdr-actions{display:flex;gap:12px;margin-top:24px;position:relative;z-index:1}
+.hdr-btn{flex:1;height:48px;border-radius:16px;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-size:13px;cursor:pointer;backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;gap:6px}
+.hdr-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ===== CARDS ===== */
+.section{padding:16px 20px}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.section-title{font-size:17px;font-weight:800;color:var(--ink)}
+.section-link{font-size:12px;font-weight:700;color:var(--purple);cursor:pointer}
+.card{background:var(--card);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+/* upgrade banner */
+.upgrade{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);margin:16px 20px 0}
+.upgrade .ic{width:44px;height:44px;border-radius:14px;background:var(--amberbg);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.upgrade b{font-size:14px;color:var(--ink)}
+.upgrade small{font-size:12px;color:var(--sub)}
+.upgrade .arrow{margin-left:auto;color:var(--sub);font-size:18px}
+
+/* quick actions */
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.qa-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;background:var(--card);border-radius:18px;box-shadow:var(--shadow);cursor:pointer;border:none;width:100%}
+.qa-item .qi{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.qa-item span{font-size:11px;font-weight:700;color:var(--ink)}
+
+/* transactions */
+.txrow{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.txrow:last-child{border-bottom:none}
+.txrow .arrow{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.txrow .mid{flex:1;min-width:0}
+.txrow .mid b{display:block;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txrow .mid small{font-size:11px;color:var(--sub)}
+.txrow .right{text-align:right}
+.txrow .right .amt{font-weight:800;font-size:14px}
+.txrow .right small{display:block;font-size:11px;color:var(--sub)}
+
+/* ===== STATISTICS ===== */
+.stat-hdr{background:linear-gradient(155deg,#7C6CFF 0%,#6366F1 30%,#4F46E5 70%,#4338CA 100%);color:#fff;padding:56px 24px 28px;border-radius:0 0 32px 32px;position:relative;overflow:hidden}
+.stat-hdr::before{content:"";position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.08)}
+.stat-hdr .row{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.stat-hdr .title{font-size:20px;font-weight:800}
+.share-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.period-sel{display:flex;align-items:center;gap:6px;margin-top:16px;position:relative;z-index:1;cursor:pointer}
+.period-sel span{font-size:14px;font-weight:600;opacity:.8}
+
+/* bar chart */
+.chart-area{padding:20px 24px;position:relative;z-index:1}
+.bars{display:flex;align-items:flex-end;gap:14px;height:180px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-pair{display:flex;gap:5px;align-items:flex-end;height:150px;width:100%}
+.bar{border-radius:8px;width:100%;min-height:8px;transition:height .4s}
+.bar.income{background:rgba(255,255,255,.35)} .bar.expense{background:rgba(255,255,255,.9)}
+.bar-label{font-size:11px;opacity:.65;margin-top:4px}
+.bar-col.active .bar-label{opacity:1;font-weight:700;background:rgba(255,255,255,.2);padding:2px 10px;border-radius:8px}
+.legend-row{display:flex;gap:16px;justify-content:center;margin-top:16px;position:relative;z-index:1}
+.legend-row .leg{display:flex;align-items:center;gap:6px;font-size:12px;opacity:.8}
+.legend-row .dot{width:10px;height:10px;border-radius:50%}
+.legend-row .dot.in{background:rgba(255,255,255,.35)} .legend-row .dot.ex{background:rgba(255,255,255,.9)}
+
+/* comparison cards */
+.comp-cards{padding:16px 20px}
+.comp-card{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px;cursor:pointer}
+.comp-card .ci{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.comp-card .cmid{flex:1}
+.comp-card .cmid b{font-size:14px;color:var(--ink);display:block}
+.comp-card .cmid small{font-size:11.5px;color:var(--sub)}
+.comp-card .arrow{color:var(--sub);font-size:18px}
+
+/* ===== BOTTOM NAV ===== */
+nav{position:absolute;bottom:0;width:100%;background:var(--card);border-top:1px solid var(--line);display:flex;padding:8px 0 24px;border-radius:0 0 44px 44px;z-index:10}
+nav button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sub);cursor:pointer;padding:6px 0}
+nav button .ni{font-size:22px} nav button.on{color:var(--purple)}
+nav button.on .nb{width:20px;height:3px;border-radius:2px;background:var(--purple);margin-top:2px}
+
+/* ===== MODALS ===== */
+.modal{position:fixed;inset:0;background:rgba(15,17,25,.55);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.modal.open{display:flex}
+.sheet{width:390px;max-width:100vw;background:var(--bg);border-radius:28px 28px 0 0;padding:16px 20px 30px;max-height:90vh;overflow:auto}
+.sheet h2{font-size:17px;font-weight:800;margin:0 0 10px}
+.fld{margin:8px 0}.fld label{font-size:11px;font-weight:700;color:var(--sub)}
+.fld input,.fld select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;margin-top:5px;font-size:14px;background:var(--card);color:var(--ink);outline:none}
+.fld input:focus{border-color:var(--purple)}
+.err{color:var(--red);font-size:11px;font-weight:700;margin-top:3px;display:none}
+.pbtn{width:100%;height:50px;border-radius:16px;border:none;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px}
+.pbtn.primary{background:var(--purple);color:#fff}
+.pbtn.secondary{background:var(--lavender);color:var(--purple)}
+.pbtn.danger{background:var(--redbg);color:var(--red)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}.seg button{flex:1;min-width:60px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 4px;font-size:12px;font-weight:700;cursor:pointer}
+.seg button.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+.rowline{display:flex;justify-content:space-between;align-items:center}
+.muted{color:var(--sub);font-size:12px}
+.pindots{display:flex;gap:14px;justify-content:center;margin:16px 0}
+.pindots span{width:16px;height:16px;border-radius:50%;border:2px solid var(--purple);transition:.15s}
+.pindots span.f{background:var(--purple)}
+.kbd{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kbd button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:16px;font-size:20px;font-weight:800;cursor:pointer}
+.auth{padding:60px 26px;text-align:center;background:var(--bg)}
+.logo{width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,var(--purple),var(--purple2));color:#fff;font-size:40px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(99,102,241,.3)}
+.seg2{display:flex;background:var(--lavender);border-radius:14px;padding:4px;margin:16px 0}
+.seg2 button{flex:1;border:none;background:none;padding:11px;border-radius:10px;font-weight:800;color:var(--sub);cursor:pointer;font-size:13px}
+.seg2 button.on{background:var(--card);color:var(--purple);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.switch{position:relative;width:46px;height:26px;background:#CBD5E1;border-radius:20px;border:none;cursor:pointer;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.15s}
+.switch.on{background:var(--green)} .switch.on::after{left:23px}
+.empty{text-align:center;padding:24px;color:var(--sub);font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- =============== DASBOR =============== -->
+<div class="phone" id="dashScreen">
+  <div class="hdr">
+    <div class="hdr-row">
+      <div class="avatar" onclick="showSettings()">😎</div>
+      <div style="text-align:right">
+        <div class="greet">Good Day!</div>
+        <div class="name" id="userName">Pengguna</div>
+      </div>
+      <button class="notif" onclick="showNotif()">🔔<span class="dot"></span></button>
+    </div>
+    <div class="bal-sec">
+      <div class="bal-label">Account Balance <button class="eye-btn" id="eyeBtn" onclick="toggleEye()">👁</button></div>
+      <div class="bal-amount" id="balAmt">Rp 12,540,000</div>
+      <div class="bal-acct">Account no: **** **** 3569</div>
+    </div>
+    <div class="hdr-actions">
+      <button class="hdr-btn" onclick="quickAdd('INCOME')">↙ Add Money</button>
+      <button class="hdr-btn" onclick="quickAdd('EXPENSE')">↗ Send Money</button>
+    </div>
+  </div>
+
+  <div class="upgrade"><div class="ic">⚠️</div><div><b>Upgrade Account</b><br><small>Upgrade your account for more features.</small></div><span class="arrow">›</span></div>
+
+  <div class="section">
+    <div class="section-head"><span class="section-title">Quick Actions</span></div>
+    <div class="qa-grid">
+      <button class="qa-item" onclick="quickAdd('INCOME')"><div class="qi" style="background:var(--lavender)">💰</div><span>Topup</span></button>
+      <button class="qa-item" onclick="goTab(3)"><div class="qi" style="background:var(--amberbg)">📋</div><span>Bills</span></button>
+      <button class="qa-item" onclick="goTab(2)"><div class="qi" style="background:var(--greenbg)">🏦</div><span>Savings</span></button>
+      <button class="qa-item" onclick="showCards()"><div class="qi" style="background:var(--bluebg)">💳</div><span>Cards</span></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><span class="section-title">Recent Transactions</span><span class="section-link" onclick="goTab(0)">⟶</span></div>
+    <div class="card" id="recentTx"></div>
+  </div>
+
+  <nav id="nav1">
+    <button class="on" onclick="goTab(0,this)"><span class="ni">🏠</span>History<span class="nb"></span></button>
+    <button onclick="goTab(1,this)"><span class="ni">💳</span>Cards<span class="nb"></span></button>
+    <button onclick="goTab(2,this)"><span class="ni">📊</span>Status<span class="nb"></span></button>
+    <button onclick="goTab(3,this)"><span class="ni">📋</span>History<span class="nb"></span></button>
+    <button onclick="goTab(4,this)"><span class="ni">⚙️</span>Settings<span class="nb"></span></button>
+  </nav>
+</div>
+
+<!-- =============== STATISTICS =============== -->
+<div class="phone" id="statScreen" style="display:none">
+  <div class="stat-hdr">
+    <div class="row"><div class="avatar" style="width:40px;height:40px;font-size:18px" onclick="showDash()">😎</div><div class="title">Statistics</div><button class="share-btn">📤</button></div>
+    <div class="period-sel" onclick="cyclePeriod()"><span id="periodLabel">Monthly</span> ▾</div>
+    <div class="chart-area"><div class="bars" id="bars"></div>
+      <div class="legend-row"><span class="leg"><span class="dot in"></span>Earned</span><span class="leg"><span class="dot ex"></span>Spend</span></div></div>
+  </div>
+  <div class="comp-cards">
+    <div class="comp-card"><div class="ci" style="background:var(--greenbg)">📈</div><div class="cmid"><b>Income</b><small id="compInc">+Rp 5,000,000 more than November</small></div><span class="arrow">›</span></div>
+    <div class="comp-card"><div class="ci" style="background:var(--amberbg)">📋</div><div class="cmid"><b>Bills & Utilities</b><small id="compBills">2 bills this month</small></div><span class="arrow">›</span></div>
+    <div class="comp-card"><div class="ci" style="background:var(--bluebg)">💸</div><div class="cmid"><b>Spendings</b><small id="compSpend">Rp 900,000 total pengeluaran</small></div><span class="arrow">›</span></div>
+  </div>
+  <nav id="nav2">
+    <button onclick="showDash()"><span class="ni">🏠</span>History<span class="nb"></span></button>
+    <button onclick="showCards()"><span class="ni">💳</span>Cards<span class="nb"></span></button>
+    <button class="on"><span class="ni">📊</span>Status<span class="nb"></span></button>
+    <button onclick="goTab(3)"><span class="ni">📋</span>History<span class="nb"></span></button>
+    <button onclick="showSettings()"><span class="ni">⚙️</span>Settings<span class="nb"></span></button>
+  </nav>
+</div>
+
+<!-- =============== AUTH =============== -->
+<div class="phone" id="authScreen">
+  <div class="auth">
+    <div class="logo">💰</div>
+    <h2 style="font-size:22px;margin:0 0 6px">Welcome Back!</h2>
+    <p class="muted">Manage your finances securely across all devices.</p>
+    <div class="seg2"><button class="on" id="aIn" onclick="setAuth('in')">Sign In</button><button id="aUp" onclick="setAuth('up')">Sign Up</button></div>
+    <div class="fld" style="text-align:left"><label>Email</label><input id="aEmail" placeholder="you@email.com"><div class="err" id="eEmail"></div></div>
+    <div class="fld" style="text-align:left"><label>Password (min. 6)</label><input id="aPass" type="password" placeholder="••••••••"><div class="err" id="ePass"></div></div>
+    <div class="fld" id="aConfW" style="text-align:left;display:none"><label>Confirm Password</label><input id="aConf" type="password" placeholder="••••••••"><div class="err" id="eConf"></div></div>
+    <button class="pbtn primary" onclick="submitAuth()">Continue</button>
+    <button class="pbtn secondary" onclick="enterApp(false)">Continue as Guest</button>
+  </div>
+</div>
+
+<!-- TX dialog -->
+<div class="modal" id="txModal"><div class="sheet"><h2 id="txTitle">Add Transaction</h2>
+  <div class="fld"><label>Type</label><div class="seg" id="txTypes"><button data-t="EXPENSE" class="on" onclick="pickTxType('EXPENSE')">Expense</button><button data-t="INCOME" onclick="pickTxType('INCOME')">Income</button><button data-t="WITHDRAWAL" onclick="pickTxType('WITHDRAWAL')">Transfer Out</button><button data-t="DEPOSIT" onclick="pickTxType('DEPOSIT')">Transfer In</button></div></div>
+  <div class="fld"><label>Title</label><input id="txJudul" placeholder="e.g. Coffee, Salary"></div>
+  <div class="fld"><label>Amount</label><input id="txJumlah" inputmode="numeric" placeholder="e.g. 25000"></div>
+  <div class="fld"><label>Account</label><div class="seg" id="txAcc"><button data-a="CASH" class="on" onclick="pickTxAcc('CASH')">Cash</button><button data-a="BANK" onclick="pickTxAcc('BANK')">Bank</button><button data-a="CREDIT_CARD" onclick="pickTxAcc('CREDIT_CARD')">Credit Card</button></div></div>
+  <div class="fld"><label>Category</label><select id="txCat"></select></div>
+  <div class="fld"><label>Date</label><input id="txDate" type="date"></div>
+  <div class="fld"><label>Note</label><input id="txNote" placeholder="Optional note"></div>
+  <button class="pbtn primary" onclick="saveTx()">Save</button>
+  <button class="pbtn secondary" onclick="closeModal('txModal')">Cancel</button></div></div>
+
+<!-- TX detail -->
+<div class="modal" id="txDet"><div class="sheet"><h2>Transaction Detail</h2><div id="txDetBody"></div>
+  <button class="pbtn secondary" style="background:var(--redbg);color:var(--red)" onclick="delTx()">Delete</button>
+  <button class="pbtn primary" onclick="closeModal('txDet')">Close</button></div></div>
+
+<!-- Bill add -->
+<div class="modal" id="billModal"><div class="sheet"><h2>Add Bill</h2>
+  <div class="fld"><label>Name</label><input id="bJudul" placeholder="e.g. Electricity, WiFi"></div>
+  <div class="fld"><label>Amount</label><input id="bJumlah" inputmode="numeric" placeholder="e.g. 350000"></div>
+  <div class="fld"><label>Category</label><select id="bCat"><option>Electricity</option><option>Water</option><option>Internet</option><option>Rent</option><option>Other</option></select></div>
+  <div class="fld"><label>Due Date</label><input id="bDate" type="date"></div>
+  <button class="pbtn primary" onclick="saveBill()">Save</button>
+  <button class="pbtn secondary" onclick="closeModal('billModal')">Cancel</button></div></div>
+
+<!-- Pay confirm -->
+<div class="modal" id="payModal"><div class="sheet"><h2>Confirm Payment</h2><p class="muted" id="payTxt"></p>
+  <div class="fld"><label>Pay From</label><div class="seg" id="payAcc"><button data-a="CASH" class="on" onclick="pickPay('CASH')">Cash</button><button data-a="BANK" onclick="pickPay('BANK')">Bank</button></div></div>
+  <button class="pbtn primary" onclick="confirmPay()">Pay Now</button>
+  <button class="pbtn secondary" onclick="closeModal('payModal')">Cancel</button></div></div>
+
+<!-- Lock -->
+<div class="modal" id="lockModal"><div class="sheet" style="text-align:center">
+  <div style="font-size:48px">🔒</div><h2>App Locked</h2><p class="muted">Enter PIN to unlock</p>
+  <div class="pindots" id="pinDots"></div><div class="kbd" id="pinPad"></div>
+  <button class="pbtn secondary" onclick="closeModal('lockModal')">Cancel (demo)</button></div></div>
+
+<!-- Settings -->
+<div class="modal" id="setModal"><div class="sheet"><h2>Settings</h2>
+  <div class="card" style="margin:0"><div class="rowline"><b>🎨 Theme</b></div><div class="seg" style="margin-top:8px"><button class="${theme==='light'?'on':''}" onclick="setTheme('light')">Light</button><button class="${theme==='dark'?'on':''}" onclick="setTheme('dark')">Dark</button></div></div>
+  <div class="card" style="margin-top:12px"><div class="rowline"><b>☁️ Cloud Sync</b><button class="switch${logged?' on':''}" onclick="toggleSync()"></button></div><p class="muted" style="margin-top:6px" id="syncStatus">${logged?'Online':'Offline'}</p></div>
+  <div class="card" style="margin-top:12px"><b>📤 Export CSV</b><div style="display:flex;gap:8px;margin-top:8px"><button class="pbtn secondary" style="flex:1;margin:0" onclick="expCSV('tx')">Transactions</button><button class="pbtn secondary" style="flex:1;margin:0" onclick="expCSV('bill')">Bills</button></div></div>
+  <button class="pbtn primary" onclick="closeModal('setModal')">Done</button></div></div>
+
+<script>
+// ===== UTILS =====
+const rp=n=>'Rp '+Number(Math.round(n)).toLocaleString('id-ID');
+const fdate=m=>new Date(m).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+const D=864e5,now=Date.now();
+const dOff=(n,h=12)=>{const d=new Date();d.setDate(d.getDate()-n);d.setHours(h,0,0,0);return d.getTime()};
+const PAL=['#6366F1','#8B5CF6','#EC4899','#F59E0B','#10B981','#3B82F6','#EF4444','#14B8A6'];
+const CATC={'Makanan':'#F59E0B','Transportasi':'#3B82F6','Tagihan':'#8B5CF6','Belanja':'#EC4899','Hiburan':'#EF4444','Gaji':'#10B981','Bonus':'#14B8A6','Investasi':'#6366F1','Lain-lain':'#8B92A5'};
+const BILLC={Electricity:'#F59E0B',Water:'#3B82F6',Internet:'#8B5CF6',Rent:'#EF4444',Other:'#8B92A5'};
+// ===== STATE =====
+let txs=[
+ {id:1,t:'Mitchell Ramos',a:2000000,ty:'INCOME',ac:'BANK',c:'Gaji',d:dOff(1)},
+ {id:2,t:'Kopi Starbucks',a:65000,ty:'EXPENSE',ac:'CASH',c:'Makanan',d:dOff(0,14)},
+ {id:3,t:'Listrik PLN',a:350000,ty:'EXPENSE',ac:'BANK',c:'Tagihan',d:dOff(2)},
+ {id:4,t:'Transfer ke Andi',a:500000,ty:'WITHDRAWAL',ac:'BANK',c:'Lain-lain',d:dOff(3)},
+ {id:5,t:'Paul Francis',a:5000000,ty:'INCOME',ac:'BANK',c:'Bonus',d:dOff(5)},
+ {id:6,t:'Grab Food',a:85000,ty:'EXPENSE',ac:'CASH',c:'Makanan',d:dOff(6)},
+ {id:7,t:'Bensin Pertalite',a:50000,ty:'EXPENSE',ac:'CASH',c:'Transportasi',d:dOff(8)},
+ {id:8,t:'Gaji Bulanan',a:5000000,ty:'INCOME',ac:'BANK',c:'Gaji',d:dOff(32)},
+ {id:9,t:'Belanja Bulanan',a:425000,ty:'EXPENSE',ac:'BANK',c:'Belanja',d:dOff(35)},
+ {id:10,t:'Internet',a:350000,ty:'EXPENSE',ac:'BANK',c:'Tagihan',d:dOff(38)},
+];
+let bills=[
+ {id:1,t:'Listrik PLN',a:352000,due:dOff(2),paid:false,c:'Electricity'},
+ {id:2,t:'Internet Indihome',a:350000,due:dOff(-3),paid:false,c:'Internet'},
+ {id:3,t:'Air PDAM',a:120000,due:dOff(10),paid:true,c:'Water'},
+];
+let cats=['Makanan','Transportasi','Tagihan','Belanja','Hiburan','Gaji','Bonus','Investasi','Lain-lain'];
+let eye=true,logged=false,selT='ALL',selA='ALL',txType='EXPENSE',txAcc='CASH',editTxId=null,detId=null,payId=null,payAcc='CASH',editBillId=null;
+let pin=null,pinBuf='',theme='light',periodIdx=0,authMode='in';
+const periods=['Monthly','Weekly','Yearly'];
+// ===== NAV =====
+function goTab(i,el){showDash();document.querySelectorAll('#nav1 button').forEach(b=>b.classList.remove('on'));(el||document.querySelectorAll('#nav1 button')[i]).classList.add('on');}
+function showDash(){document.getElementById('dashScreen').style.display='';document.getElementById('statScreen').style.display='none';paintAll();}
+function showStats(){document.getElementById('dashScreen').style.display='none';document.getElementById('statScreen').style.display='';paintStats();}
+function showCards(){alert('Cards management — coming soon!');}
+function showNotif(){alert('Notifications: 2 unpaid bills due soon.');}
+function showSettings(){document.getElementById('setModal').classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+// ===== DASHBOARD =====
+function balances(){let c=2450000,b=10000000;txs.forEach(t=>{const v=t.ty==='INCOME'?t.a:-t.a;
+ if(t.ty==='WITHDRAWAL'){b-=t.a;c+=t.a;}else if(t.ty==='DEPOSIT'){c-=t.a;b+=t.a;}else if(t.ac==='CASH')c+=v;else if(t.ac==='BANK')b+=v;});return{c,b,tot:c+b};}
+function toggleEye(){eye=!eye;document.getElementById('eyeBtn').textContent=eye?'👁':'🙈';paintSums();}
+function paintSums(){const s=balances();document.getElementById('balAmt').textContent=eye?rp(s.tot):'••••••••';}
+function txIcon(t){return t.ty==='INCOME'?'↗':t.ty==='WITHDRAWAL'?'↗':'↙';}
+function txColor(t){return t.ty==='INCOME'?'var(--green)':'var(--red)';}
+function txBg(t){return t.ty==='INCOME'?'var(--greenbg)':'var(--redbg)';}
+function txRow(t){return `<div class="txrow" onclick="openDet(${t.id})"><div class="arrow" style="background:${txBg(t)};color:${txColor(t)}">${txIcon(t)}</div><div class="mid"><b>${t.t}</b><small>${fdate(t.d)} • ${t.c}</small></div><div class="right"><div class="amt" style="color:${txColor(t)}">${t.ty==='INCOME'?'+':'-'}${rp(t.a)}</div><small>${t.ac==='CREDIT_CARD'?'Credit Card':t.ac==='BANK'?'Bank':'Cash'}</small></div></div>`;}
+function paintRecent(){const r=txs.slice().sort((a,b)=>b.d-a.d).slice(0,4);document.getElementById('recentTx').innerHTML=r.map(txRow).join('')||'<div class="empty">No transactions yet</div>';}
+function paintAll(){paintSums();paintRecent();}
+// ===== TRANSACTIONS =====
+const TL=[['ALL','All'],['INCOME','Income'],['EXPENSE','Expense'],['TRANSFER','Transfer']];
+const AL=[['ALL','All'],['CASH','Cash'],['BANK','Bank'],['CREDIT_CARD','Credit Card']];
+function quickAdd(ty){txType=ty;openTxDialog();}
+function openTxDialog(){editTxId=null;document.getElementById('txTitle').textContent='Add Transaction';
+ document.getElementById('txCat').innerHTML=cats.map(c=>`<option>${c}</option>`).join('');
+ document.getElementById('txDate').value=new Date().toISOString().slice(0,10);
+ ['txJudul','txJumlah','txNote'].forEach(i=>document.getElementById(i).value='');document.getElementById('txModal').classList.add('open');}
+function pickTxType(t){txType=t;document.querySelectorAll('#txTypes button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));}
+function pickTxAcc(a){txAcc=a;document.querySelectorAll('#txAcc button').forEach(b=>b.classList.toggle('on',b.dataset.a===a));}
+function saveTx(){const j=document.getElementById('txJudul').value.trim()||'Transaction',a=parseFloat((document.getElementById('txJumlah').value||'0').replace(/[^0-9.]/g,''))||0;
+ const rec={id:editTxId||Date.now(),t:j,a,ty:txType,ac:txAcc,c:document.getElementById('txCat').value,d:new Date(document.getElementById('txDate').value||Date.now()).getTime(),n:document.getElementById('txNote').value};
+ txs=editTxId?txs.map(x=>x.id===editTxId?rec:x):[rec,...txs];closeModal('txModal');paintAll();}
+function openDet(id){detId=id;const t=txs.find(x=>x.id===id);
+ document.getElementById('txDetBody').innerHTML=`<div class="card" style="margin:12px 0"><b style="font-size:16px">${t.t}</b><br><span class="muted">${t.c} • ${t.ac} • ${fdate(t.d)}</span><br><b style="font-size:20px;color:${txColor(t)}">${t.ty==='INCOME'?'+':'-'}${rp(t.a)}</b></div>`;
+ document.getElementById('txDet').classList.add('open');}
+function delTx(){txs=txs.filter(x=>x.id!==detId);closeModal('txDet');paintAll();}
+// ===== BILLS =====
+function cdText(b){const diff=b.due-now;if(diff<0)return `<span style="color:var(--red);font-weight:700">Overdue ${Math.ceil(-diff/D)}d</span>`;if(diff<4*D)return `<span style="color:var(--amber);font-weight:700">${Math.ceil(diff/D)}d left</span>`;return `<span class="muted">${fdate(b.due)}</span>`;}
+function openBillDialog(id){editBillId=id||null;const b=id?bills.find(x=>x.id===id):null;
+ document.getElementById('bJudul').value=b?b.t:'';document.getElementById('bJumlah').value=b?b.a:'';
+ document.getElementById('bDate').value=new Date(b?b.due:Date.now()).toISOString().slice(0,10);document.getElementById('billModal').classList.add('open');}
+function saveBill(){const r={id:editBillId||Date.now(),t:document.getElementById('bJudul').value||'Bill',a:parseFloat(document.getElementById('bJumlah').value)||0,c:document.getElementById('bCat').value,due:new Date(document.getElementById('bDate').value||Date.now()).getTime(),paid:false};
+ bills=editBillId?bills.map(x=>x.id===editBillId?r:x):[r,...bills];closeModal('billModal');paintBills();}
+function openPay(id){payId=id;const b=bills.find(x=>x.id===id);document.getElementById('payTxt').textContent=`Pay "${b.t}" — ${rp(b.a)}?`;document.getElementById('payModal').classList.add('open');}
+function pickPay(a){payAcc=a;document.querySelectorAll('#payAcc button').forEach(b=>b.classList.toggle('on',b.dataset.a===a));}
+function confirmPay(){const b=bills.find(x=>x.id===payId);b.paid=true;txs.unshift({id:Date.now(),t:b.t,a:b.a,ty:'EXPENSE',ac:payAcc,c:'Tagihan',d:Date.now()});closeModal('payModal');paintBills();}
+function paintBills(){/* no-op, bills section accessed from dashboard */ }
+// ===== STATISTICS =====
+function cyclePeriod(){periodIdx=(periodIdx+1)%3;document.getElementById('periodLabel').textContent=periods[periodIdx];paintStats();}
+function paintStats(){const MN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+ const d=new Date(),pairs=[];
+ for(let k=5;k>=0;k--){const dt=new Date(d.getFullYear(),d.getMonth()-k,1),nx=new Date(d.getFullYear(),d.getMonth()-k+1,1);
+ const mi=txs.filter(t=>t.ty==='INCOME'&&t.d>=dt.getTime()&&t.d<nx.getTime()).reduce((s,t)=>s+t.a,0);
+ const me=txs.filter(t=>t.ty==='EXPENSE'&&t.d>=dt.getTime()&&t.d<nx.getTime()).reduce((s,t)=>s+t.a,0);
+ pairs.push({l:MN[dt.getMonth()],mi,me,active:k===0});}
+ const mx=Math.max(...pairs.map(p=>Math.max(p.mi,p.me)),1);
+ document.getElementById('bars').innerHTML=pairs.map(p=>`<div class="bar-col${p.active?' active':''}"><div class="bar-pair"><div class="bar income" style="height:${Math.max(8,p.mi/mx*150)}px"></div><div class="bar expense" style="height:${Math.max(8,p.me/mx*150)}px"></div></div><div class="bar-label">${p.l}</div></div>`).join('');
+ const cur=pairs[pairs.length-1],prev=pairs[pairs.length-2];
+ document.getElementById('compInc').textContent=`+${rp(cur.mi-prev.mi)} more than ${prev.l}`;
+ document.getElementById('compBills').textContent=`${bills.filter(b=>!b.paid).length} unpaid bills`;
+ document.getElementById('compSpend').textContent=`${rp(cur.me)} total pengeluaran`;}
+// ===== AUTH =====
+function setAuth(m){authMode=m;document.getElementById('aIn').classList.toggle('on',m==='in');document.getElementById('aUp').classList.toggle('on',m==='up');document.getElementById('aConfW').style.display=m==='up'?'block':'none';}
+function showErr(id,msg){const e=document.getElementById(id);e.textContent=msg||'';e.style.display=msg?'block':'none';}
+function submitAuth(){const em=document.getElementById('aEmail').value.trim(),pw=document.getElementById('aPass').value,cf=document.getElementById('aConf').value;
+ let ok=true;showErr('eEmail',null);showErr('ePass',null);showErr('eConf',null);
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){showErr('eEmail','Invalid email.');ok=false;}
+ if(pw.length<6){showErr('ePass','Min 6 characters.');ok=false;}
+ if(authMode==='up'&&cf!==pw){showErr('eConf','Passwords do not match.');ok=false;}
+ if(ok)enterApp(true);}
+function enterApp(login){logged=login;document.getElementById('authScreen').style.display='none';document.getElementById('dashScreen').style.display='';document.getElementById('userName').textContent=login?'Pengguna':'Guest';paintAll();}
+// ===== SETTINGS =====
+function setTheme(t){theme=t;document.body.classList.toggle('dark',t==='dark');}
+function toggleSync(){logged=!logged;document.getElementById('syncStatus').textContent=logged?'Online':'Offline';}
+function expCSV(kind){let csv;if(kind==='tx'){csv='Date,Type,Title,Category,Account,Amount\n';txs.forEach(t=>csv+=`${new Date(t.d).toISOString().slice(0,16)},${t.ty},"${t.t}",${t.c},${t.ac},${t.a}\n`);}
+ else{csv='Name,Category,Amount,Due,Status\n';bills.forEach(b=>csv+=`"${b.t}",${b.c},${b.a},${new Date(b.due).toISOString().slice(0,10)},${b.paid?'Paid':'Unpaid'}\n`);}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=kind==='tx'?'transactions.csv':'bills.csv';a.click();}
+// ===== LOCK =====
+document.getElementById('pinPad').innerHTML=[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k=>`<button onclick="pressPin('${k}')">${k}</button>`).join('');
+function drawPin(){document.getElementById('pinDots').innerHTML=[0,1,2,3].map((_,i)=>`<span class="${i<pinBuf.length?'f':''}"></span>`).join('');}
+function pressPin(k){if(k==='✓')return;if(k==='⌫')pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=k;drawPin();
+ if(pinBuf.length===4){if(!pin){pin=pinBuf;alert('PIN set!');closeModal('lockModal');}else if(pinBuf===pin)closeModal('lockModal');else{pinBuf='';drawPin();alert('Wrong PIN (demo: 1234)');}}}
+paintAll();paintStats();
+</script>
+</body>
+</html>
